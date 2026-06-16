@@ -1,0 +1,505 @@
+<?php
+
+class LeaveRequest
+{
+    public static function create(array $data): int
+    {
+        $stmt = db()->prepare(
+            'INSERT INTO leave_requests
+             (employee_id, leave_type_id, contact_number, start_date, end_date, days_requested, reason, handover_notes, attachment_path)
+             VALUES
+             (:employee_id, :leave_type_id, :contact_number, :start_date, :end_date, :days_requested, :reason, :handover_notes, :attachment_path)'
+        );
+
+        $stmt->execute([
+            'employee_id' => $data['employee_id'],
+            'leave_type_id' => $data['leave_type_id'],
+            'contact_number' => $data['contact_number'] ?? null,
+            'start_date' => $data['start_date'],
+            'end_date' => $data['end_date'],
+            'days_requested' => $data['days_requested'],
+            'reason' => $data['reason'] ?? null,
+            'handover_notes' => $data['handover_notes'] ?? null,
+            'attachment_path' => $data['attachment_path'] ?? null,
+        ]);
+
+        return (int) db()->lastInsertId();
+    }
+
+    public static function update(int $id, array $data): void
+    {
+        $stmt = db()->prepare(
+            'UPDATE leave_requests
+             SET leave_type_id = :leave_type_id,
+                 contact_number = :contact_number,
+                 start_date = :start_date,
+                 end_date = :end_date,
+                 days_requested = :days_requested,
+                 reason = :reason,
+                 handover_notes = :handover_notes,
+                 attachment_path = :attachment_path
+             WHERE id = :id'
+        );
+
+        $stmt->execute([
+            'leave_type_id' => $data['leave_type_id'],
+            'contact_number' => $data['contact_number'] ?? null,
+            'start_date' => $data['start_date'],
+            'end_date' => $data['end_date'],
+            'days_requested' => $data['days_requested'],
+            'reason' => $data['reason'] ?? null,
+            'handover_notes' => $data['handover_notes'] ?? null,
+            'attachment_path' => $data['attachment_path'] ?? null,
+            'id' => $id,
+        ]);
+    }
+
+    public static function find(int $id): ?array
+    {
+        $stmt = db()->prepare(
+            'SELECT lr.*, lt.name AS leave_type_name, lt.requires_balance,
+                    e.user_id AS employee_user_id, e.staff_id, e.designation, e.supervisor_id,
+                    u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
+                    ru.full_name AS resumed_by_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN users ru ON ru.id = lr.resumed_by_user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.id = ?'
+        );
+        $stmt->execute([$id]);
+        $request = $stmt->fetch();
+
+        return $request ?: null;
+    }
+
+    public static function forEmployee(int $employeeId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT lr.*, lt.name AS leave_type_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             WHERE lr.employee_id = ?
+             ORDER BY lr.submitted_at DESC'
+        );
+        $stmt->execute([$employeeId]);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function activeForEmployee(int $employeeId, ?string $date = null): ?array
+    {
+        $date = $date ?: date('Y-m-d');
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             WHERE lr.employee_id = ?
+               AND lr.status IN ('pending_supervisor', 'approved')
+               AND lr.end_date >= ?
+             ORDER BY lr.submitted_at ASC, lr.id ASC
+             LIMIT 1"
+        );
+        $stmt->execute([$employeeId, $date]);
+        $request = $stmt->fetch();
+
+        return $request ?: null;
+    }
+
+    public static function allRequests(?string $status = null, ?string $search = null): array
+    {
+        $sql = "SELECT lr.*, lt.name AS leave_type_name,
+                       e.staff_id,
+                       u.full_name AS employee_name,
+                       u.email AS employee_email,
+                       d.name AS department_name,
+                       dir.name AS directorate_name
+                FROM leave_requests lr
+                JOIN leave_types lt ON lt.id = lr.leave_type_id
+                JOIN employees e ON e.id = lr.employee_id
+                JOIN users u ON u.id = e.user_id
+                LEFT JOIN departments d ON d.id = e.department_id
+                LEFT JOIN directorates dir ON dir.id = d.directorate_id
+                WHERE 1 = 1";
+        $params = [];
+
+        if ($status !== null && $status !== '') {
+            if ($status === 'pending') {
+                $sql .= " AND lr.status = 'pending_supervisor'";
+            } else {
+                $sql .= ' AND lr.status = ?';
+                $params[] = $status;
+            }
+        }
+
+        if ($search !== null && trim($search) !== '') {
+            $term = '%' . trim($search) . '%';
+            $sql .= ' AND (u.full_name LIKE ? OR u.email LIKE ? OR e.staff_id LIKE ? OR lt.name LIKE ?)';
+            array_push($params, $term, $term, $term, $term);
+        }
+
+        $sql .= ' ORDER BY lr.submitted_at DESC';
+
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function pendingForRole(string $role, ?int $employeeId = null): array
+    {
+        $status = ApprovalWorkflowService::statusForRole($role);
+        if (!$status && $role !== 'admin') {
+            return [];
+        }
+
+        $sql = "SELECT lr.*, lt.name AS leave_type_name,
+                       e.staff_id, e.supervisor_id,
+                       u.full_name AS employee_name,
+                       d.name AS department_name,
+                       dir.name AS directorate_name
+                FROM leave_requests lr
+                JOIN leave_types lt ON lt.id = lr.leave_type_id
+                JOIN employees e ON e.id = lr.employee_id
+                JOIN users u ON u.id = e.user_id
+                LEFT JOIN departments d ON d.id = e.department_id
+                LEFT JOIN directorates dir ON dir.id = d.directorate_id
+                WHERE ";
+
+        $params = [];
+
+        if ($role === 'admin') {
+            $sql .= "lr.status = 'pending_supervisor'";
+        } else {
+            $sql .= 'lr.status = ?';
+            $params[] = $status;
+        }
+
+        if ($role === 'supervisor' && $employeeId) {
+            $sql .= ' AND (e.supervisor_id = ? OR e.supervisor_id IS NULL)';
+            $params[] = $employeeId;
+        }
+
+        $sql .= ' ORDER BY lr.submitted_at ASC';
+
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function approvedBetween(string $from, string $to, string $role = 'admin', ?int $employeeId = null): array
+    {
+        $params = [$to, $from];
+        $scope = self::visibilityScope('e', $role, $employeeId, $params);
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    e.staff_id, e.supervisor_id,
+                    u.full_name AS employee_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.status = 'approved'
+               AND lr.start_date <= ?
+               AND lr.end_date >= ?
+               $scope
+             ORDER BY lr.start_date ASC, u.full_name ASC"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function liveOverview(string $role, ?int $employeeId = null, ?string $date = null): array
+    {
+        $date = $date ?: date('Y-m-d');
+
+        return [
+            'today' => $date,
+            'on_leave' => self::approvedForDate($date, $role, $employeeId, 200),
+            'returning_today' => self::returningOn($date, $role, $employeeId, 200),
+            'upcoming' => self::upcomingApproved($date, $role, $employeeId, 200),
+            'pending_by_stage' => self::pendingStageCounts($role, $employeeId),
+        ];
+    }
+
+    public static function approvedForDate(string $date, string $role, ?int $employeeId = null, int $limit = 8): array
+    {
+        $params = [$date, $date];
+        $scope = self::visibilityScope('e', $role, $employeeId, $params);
+        $limit = max(1, min($limit, 200));
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    u.full_name AS employee_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.status = 'approved'
+               AND lr.start_date <= ?
+               AND lr.end_date >= ?
+               $scope
+             ORDER BY lr.end_date ASC, u.full_name ASC
+             LIMIT $limit"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function returningOn(string $date, string $role, ?int $employeeId = null, int $limit = 8): array
+    {
+        $params = [$date];
+        $scope = self::visibilityScope('e', $role, $employeeId, $params);
+        $limit = max(1, min($limit, 200));
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    u.full_name AS employee_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.status = 'approved'
+               AND lr.end_date = ?
+               $scope
+             ORDER BY u.full_name ASC
+             LIMIT $limit"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function upcomingApproved(string $date, string $role, ?int $employeeId = null, int $limit = 8): array
+    {
+        $params = [$date];
+        $scope = self::visibilityScope('e', $role, $employeeId, $params);
+        $limit = max(1, min($limit, 200));
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    u.full_name AS employee_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.status = 'approved'
+               AND lr.start_date > ?
+               $scope
+             ORDER BY lr.start_date ASC, u.full_name ASC
+             LIMIT $limit"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function pendingStageCounts(string $role = 'admin', ?int $employeeId = null): array
+    {
+        $counts = [
+            'pending_supervisor' => 0,
+        ];
+
+        $params = [];
+        $status = ApprovalWorkflowService::statusForRole($role);
+        $statusFilter = "lr.status = 'pending_supervisor'";
+
+        if ($role !== 'admin') {
+            if (!$status) {
+                return $counts;
+            }
+
+            $statusFilter = 'lr.status = ?';
+            $params[] = $status;
+        }
+
+        $scope = self::visibilityScope('e', $role, $employeeId, $params);
+
+        $stmt = db()->prepare(
+            "SELECT lr.status, COUNT(*) AS total
+             FROM leave_requests lr
+             JOIN employees e ON e.id = lr.employee_id
+             WHERE $statusFilter
+             $scope
+             GROUP BY lr.status"
+        );
+        $stmt->execute($params);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $counts[$row['status']] = (int) $row['total'];
+        }
+
+        return $counts;
+    }
+
+    public static function updateStatus(int $id, string $status, ?string $rejectionReason = null): void
+    {
+        $finalized = in_array($status, ['approved', 'rejected', 'cancelled'], true) ? ', finalized_at = NOW()' : '';
+        $stmt = db()->prepare(
+            "UPDATE leave_requests
+             SET status = ?, rejection_reason = ? $finalized
+             WHERE id = ?"
+        );
+        $stmt->execute([$status, $rejectionReason, $id]);
+    }
+
+    public static function markResumed(int $id, int $userId, ?string $notes = null): void
+    {
+        $stmt = db()->prepare(
+            "UPDATE leave_requests
+             SET resumed_at = NOW(),
+                 resumed_by_user_id = ?,
+                 resumption_notes = ?
+             WHERE id = ? AND status = 'approved' AND resumed_at IS NULL"
+        );
+        $stmt->execute([$userId, $notes, $id]);
+    }
+
+    public static function counts(?int $employeeId = null): array
+    {
+        $where = $employeeId ? 'WHERE employee_id = ?' : '';
+        $stmt = db()->prepare(
+            "SELECT status, COUNT(*) AS total FROM leave_requests $where GROUP BY status"
+        );
+        $stmt->execute($employeeId ? [$employeeId] : []);
+
+        $counts = [
+            'pending' => 0,
+            'approved' => 0,
+            'rejected' => 0,
+            'cancelled' => 0,
+            'total' => 0,
+        ];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $status = $row['status'];
+            $total = (int) $row['total'];
+            $counts['total'] += $total;
+
+            if (str_starts_with($status, 'pending_')) {
+                $counts['pending'] += $total;
+            } elseif (isset($counts[$status])) {
+                $counts[$status] += $total;
+            }
+        }
+
+        return $counts;
+    }
+
+    public static function reportSummary(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null): array
+    {
+        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId);
+
+        $stmt = db()->prepare(
+            "SELECT lt.name AS leave_type_name,
+                    COUNT(*) AS request_count,
+                    SUM(lr.days_requested) AS total_days
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             $where
+             GROUP BY lt.name
+             ORDER BY lt.name"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function reportDetails(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null): array
+    {
+        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId);
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    e.staff_id, e.designation,
+                    u.full_name AS employee_name,
+                    d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             $where
+             ORDER BY dir.name, d.name, u.full_name, lr.start_date"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    private static function reportWhere(?string $from, ?string $to, ?int $directorateId, ?int $departmentId): array
+    {
+        $params = [];
+        $where = "WHERE lr.status = 'approved'";
+
+        if ($from) {
+            $where .= ' AND lr.start_date >= ?';
+            $params[] = $from;
+        }
+
+        if ($to) {
+            $where .= ' AND lr.end_date <= ?';
+            $params[] = $to;
+        }
+
+        if ($directorateId !== null && $directorateId > 0) {
+            $where .= ' AND d.directorate_id = ?';
+            $params[] = $directorateId;
+        }
+
+        if ($departmentId !== null && $departmentId > 0) {
+            $where .= ' AND e.department_id = ?';
+            $params[] = $departmentId;
+        }
+
+        return [$where, $params];
+    }
+
+    private static function visibilityScope(string $employeeAlias, string $role, ?int $employeeId, array &$params): string
+    {
+        if ($role === 'supervisor' && $employeeId) {
+            $params[] = $employeeId;
+            $params[] = $employeeId;
+
+            return " AND ($employeeAlias.supervisor_id = ? OR $employeeAlias.id = ?)";
+        }
+
+        if ($role === 'employee' && $employeeId) {
+            $params[] = $employeeId;
+
+            return " AND $employeeAlias.id = ?";
+        }
+
+        return '';
+    }
+}
