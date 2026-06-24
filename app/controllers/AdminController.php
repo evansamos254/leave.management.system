@@ -15,8 +15,8 @@ class AdminController
 
         view('admin/users', [
             'title' => 'User Managements',
-            'users' => User::allWithEmployees(),
-            'approvers' => Employee::approvers(),
+            'users' => User::allWithEmployees($user),
+            'approvers' => Employee::approvers($user),
             'roles' => $user['role'] === 'admin' ? $this->roles : ['employee'],
             'statuses' => $this->statuses,
         ]);
@@ -25,6 +25,7 @@ class AdminController
     public function leaveRequests(): void
     {
         require_role($this->monitoringRoles);
+        $user = current_user();
 
         $status = trim($_GET['status'] ?? '');
         $search = trim($_GET['search'] ?? '');
@@ -43,11 +44,11 @@ class AdminController
 
         view('admin/leave-requests', [
             'title' => 'All Leave Requests',
-            'requests' => LeaveRequest::allRequests($status ?: null, $search ?: null),
+            'requests' => LeaveRequest::allRequests($status ?: null, $search ?: null, $user),
             'status' => $status,
             'search' => $search,
             'statuses' => $allowedStatuses,
-            'counts' => LeaveRequest::counts(),
+            'counts' => LeaveRequest::counts(null, $user),
         ]);
     }
 
@@ -58,7 +59,7 @@ class AdminController
 
         view('admin/account-requests', [
             'title' => 'ICT Account Requests',
-            'requests' => User::pendingRegistrations(),
+            'requests' => User::pendingRegistrations($user),
             'canAct' => $user['role'] === 'admin',
         ]);
     }
@@ -75,14 +76,20 @@ class AdminController
             redirect('admin/account-requests');
         }
 
-        $canAct = current_user()['role'] === 'admin';
+        $viewer = current_user();
+        if (!AccessScopeService::canAccessUser($request, $viewer)) {
+            set_flash('error', 'You cannot access account requests outside your department and directorate.');
+            redirect('admin/account-requests');
+        }
+
+        $canAct = $viewer['role'] === 'admin';
         if ($canAct) {
             $_SESSION['reviewed_account_requests'][$id] = true;
         }
 
         $documentFile = $this->employmentDocumentFile($request);
         $documentExtension = strtolower(pathinfo((string) ($request['employment_document_path'] ?? ''), PATHINFO_EXTENSION));
-        $previewExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+        $previewExtensions = ['pdf'];
 
         view('admin/account-request-review', [
             'title' => 'Review Account Request',
@@ -96,7 +103,7 @@ class AdminController
 
     public function activity(): void
     {
-        require_role($this->monitoringRoles);
+        require_role(['admin', 'hr']);
 
         view('admin/activity', [
             'title' => 'System Activity',
@@ -137,7 +144,7 @@ class AdminController
             $message = $user['full_name'] . ' can now log in.';
             $message .= $emailSent
                 ? ' Approval email sent to ' . $user['email'] . '.'
-                : ' Approval email could not be sent. Check outbound notification logs.';
+                : ' Approval email could not be sent.' . $this->emailFailureSuffix();
             unset($_SESSION['reviewed_account_requests'][$id]);
             set_flash('success', $message);
             redirect('admin/account-requests');
@@ -155,7 +162,7 @@ class AdminController
             AuditService::record('reject_account_request', 'users', $id);
             $emailSent = ExternalNotificationService::accountRequestRejected($user, $rejectionReason);
             $message = $user['full_name'] . ' account request rejected.';
-            $message .= $emailSent ? ' Rejection email sent.' : ' Rejection email could not be sent.';
+            $message .= $emailSent ? ' Rejection email sent.' : ' Rejection email could not be sent.' . $this->emailFailureSuffix();
             unset($_SESSION['reviewed_account_requests'][$id]);
             set_flash('success', $message);
             redirect('admin/account-requests');
@@ -173,6 +180,12 @@ class AdminController
         $user = User::find($id);
 
         if (!$user || empty($user['employment_document_path'])) {
+            http_response_code(404);
+            echo 'Supporting document not found.';
+            return;
+        }
+
+        if (!AccessScopeService::canAccessUser($user, current_user())) {
             http_response_code(404);
             echo 'Supporting document not found.';
             return;
@@ -310,7 +323,7 @@ class AdminController
             'national_id' => $data['national_id'],
             'phone' => $data['phone'],
         ], $generatedPassword);
-        $message .= $emailSent ? ' Email sent to staff member.' : ' Email could not be sent to staff member.';
+        $message .= $emailSent ? ' Email sent to staff member.' : ' Email could not be sent to staff member.' . $this->emailFailureSuffix();
 
         set_flash('success', $message);
         redirect('workers/create');
@@ -336,6 +349,11 @@ class AdminController
 
         if (!$targetUser) {
             set_flash('error', 'User profile could not be found.');
+            redirect('admin/users');
+        }
+
+        if (!AccessScopeService::canAccessUser($targetUser, $currentUser)) {
+            set_flash('error', 'You cannot update users outside your department and directorate.');
             redirect('admin/users');
         }
 
@@ -485,7 +503,7 @@ class AdminController
 
         $emailSent = ExternalNotificationService::passwordReset($targetUser, $temporaryPassword);
         $message = 'Password reset for ' . $targetUser['full_name'] . '. Temporary password: ' . $temporaryPassword . '.';
-        $message .= $emailSent ? ' Email sent to staff member.' : ' Email could not be sent to staff member.';
+        $message .= $emailSent ? ' Email sent to staff member.' : ' Email could not be sent to staff member.' . $this->emailFailureSuffix();
 
         set_flash('success', $message);
         redirect('admin/users');
@@ -725,8 +743,8 @@ class AdminController
             $errors[] = 'Password must be at least 6 characters when manually set.';
         }
 
-        if ($data['employment_date'] !== '' && strtotime($data['employment_date']) === false) {
-            $errors[] = 'Employment date is invalid.';
+        if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {
+            $errors[] = 'Employment date is invalid or cannot be in the future.';
         }
 
         if ($data['supervisor_id'] !== null && !Employee::find((int) $data['supervisor_id'])) {
@@ -809,8 +827,8 @@ class AdminController
             $errors[] = 'Designation is required.';
         }
 
-        if ($data['employment_date'] !== '' && strtotime($data['employment_date']) === false) {
-            $errors[] = 'Employment date is invalid.';
+        if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {
+            $errors[] = 'Employment date is invalid or cannot be in the future.';
         }
 
         if ($data['supervisor_id'] !== null) {
@@ -859,6 +877,15 @@ class AdminController
                 @unlink($file);
             }
         }
+    }
+
+    private function emailFailureSuffix(): string
+    {
+        $reason = trim(ExternalNotificationService::lastEmailError());
+
+        return $reason !== ''
+            ? ' Reason: ' . rtrim($reason, '.') . '.'
+            : ' Check outbound notification logs.';
     }
 
     private function employmentDocumentFile(array $user): ?string

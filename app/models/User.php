@@ -163,9 +163,11 @@ class User
         $stmt->execute([$filename, $id]);
     }
 
-    public static function allWithEmployees(): array
+    public static function allWithEmployees(?array $viewer = null): array
     {
-        $stmt = db()->query(
+        $params = [];
+        $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
+        $sql =
             'SELECT u.id, u.full_name, u.email, u.national_id, u.gender, u.role, u.phone, u.profile_photo_path, u.employment_document_path, u.status, u.created_at,
                     e.id AS employee_id, e.staff_id, e.department_id, e.designation, e.supervisor_id, e.employment_date,
                     d.directorate_id, d.name AS department_name,
@@ -177,8 +179,12 @@ class User
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              LEFT JOIN employees se ON se.id = e.supervisor_id
              LEFT JOIN users su ON su.id = se.user_id
-             ORDER BY u.created_at DESC'
-        );
+             WHERE 1 = 1'
+            . $scope
+            . ' ORDER BY u.created_at DESC';
+
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
 
         return $stmt->fetchAll();
     }
@@ -206,11 +212,14 @@ class User
         $stmt->execute([$reason, $id]);
     }
 
-    public static function pendingRegistrations(): array
+    public static function pendingRegistrations(?array $viewer = null): array
     {
-        $stmt = db()->query(
+        $params = [];
+        $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
+        $stmt = db()->prepare(
             "SELECT u.id, u.full_name, u.email, u.national_id, u.gender, u.phone, u.profile_photo_path, u.employment_document_path, u.role, u.status, u.created_at,
                     e.id AS employee_id, e.staff_id, e.designation, e.employment_date,
+                    e.department_id,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM users u
@@ -218,20 +227,32 @@ class User
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE u.status = 'pending'
+             $scope
              ORDER BY u.created_at ASC"
         );
+        $stmt->execute($params);
 
         return $stmt->fetchAll();
     }
 
-    public static function countByRole(?string $role = null): int
+    public static function countByRole(?string $role = null, ?array $viewer = null): int
     {
-        if ($role === null) {
-            return (int) db()->query('SELECT COUNT(*) FROM users')->fetchColumn();
+        $params = [];
+        $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
+        $where = 'WHERE 1 = 1' . $scope;
+
+        if ($role !== null) {
+            $where .= ' AND u.role = ?';
+            $params[] = $role;
         }
 
-        $stmt = db()->prepare('SELECT COUNT(*) FROM users WHERE role = ?');
-        $stmt->execute([$role]);
+        $stmt = db()->prepare(
+            "SELECT COUNT(*)
+             FROM users u
+             LEFT JOIN employees e ON e.user_id = u.id
+             $where"
+        );
+        $stmt->execute($params);
 
         return (int) $stmt->fetchColumn();
     }

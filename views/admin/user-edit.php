@@ -101,7 +101,8 @@
         </label>
         <label>
             <span>Employment date</span>
-            <input type="date" name="employment_date" value="<?= e(old('employment_date', $account['employment_date'] ?? '')) ?>">
+            <input type="date" name="employment_date" value="<?= e(old('employment_date', $account['employment_date'] ?? '')) ?>" max="<?= e(date('Y-m-d')) ?>">
+            <small>Select today or a past date.</small>
         </label>
         <label>
             <span>Supervisor</span>

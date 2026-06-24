@@ -12,11 +12,12 @@ class DashboardController
             LeaveBalanceService::balancesForEmployee((int) $employee['id']),
             fn (array $balance): bool => LeaveType::isEligibleForGender($balance, $user['gender'] ?? null)
         )) : [];
-        $counts = $user['role'] === 'admin'
-            ? LeaveRequest::counts()
-            : ($employee ? LeaveRequest::counts((int) $employee['id']) : LeaveRequest::counts());
+        $counts = match ($user['role']) {
+            'admin', 'hr', 'supervisor', 'director' => LeaveRequest::counts(null, $user),
+            default => $employee ? LeaveRequest::counts((int) $employee['id']) : LeaveRequest::counts(),
+        };
         $pendingApprovals = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true)
-            ? LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null)
+            ? LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null, $user)
             : [];
         $liveOverview = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true)
             ? LeaveRequest::liveOverview($user['role'], $employee ? (int) $employee['id'] : null)
@@ -32,11 +33,11 @@ class DashboardController
             'liveOverview' => $liveOverview,
             'notifications' => NotificationService::recent((int) $user['id']),
             'stats' => [
-                'users' => User::countByRole(),
-                'employees' => User::countByRole('employee'),
-                'supervisors' => User::countByRole('supervisor'),
-                'hr' => User::countByRole('hr'),
-                'directors' => User::countByRole('director'),
+                'users' => User::countByRole(null, $user),
+                'employees' => User::countByRole('employee', $user),
+                'supervisors' => User::countByRole('supervisor', $user),
+                'hr' => User::countByRole('hr', $user),
+                'directors' => User::countByRole('director', $user),
             ],
         ]);
     }

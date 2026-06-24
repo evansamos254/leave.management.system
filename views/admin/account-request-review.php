@@ -98,10 +98,6 @@
 
         <?php if (!$documentUrl): ?>
             <div class="alert alert-error">Supporting document is missing.</div>
-        <?php elseif ($canPreviewDocument && in_array($documentExtension, ['jpg', 'jpeg', 'png'], true)): ?>
-            <div class="document-preview">
-                <img class="document-preview-image" src="<?= e($documentUrl) ?>" alt="Employment supporting document">
-            </div>
         <?php elseif ($canPreviewDocument): ?>
             <div class="document-preview">
                 <iframe class="document-preview-frame" src="<?= e($documentUrl) ?>" title="Employment supporting document"></iframe>

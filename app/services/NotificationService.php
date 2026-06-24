@@ -28,6 +28,31 @@ class NotificationService
         }
     }
 
+    public static function notifyRolesInEmployeeDepartment(array $roles, int $employeeId, string $title, string $message, ?string $link = null): void
+    {
+        if (!$roles) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
+        $params = array_merge([$employeeId], $roles);
+        $stmt = db()->prepare(
+            "SELECT u.id
+             FROM employees target
+             JOIN employees e ON e.department_id = target.department_id
+             JOIN users u ON u.id = e.user_id
+             WHERE target.id = ?
+               AND target.department_id IS NOT NULL
+               AND u.role IN ($placeholders)
+               AND u.status = 'active'"
+        );
+        $stmt->execute($params);
+
+        foreach ($stmt->fetchAll() as $user) {
+            self::create((int) $user['id'], $title, $message, $link);
+        }
+    }
+
     public static function unreadCount(int $userId): int
     {
         $stmt = db()->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
@@ -52,4 +77,3 @@ class NotificationService
         $stmt->execute([$userId]);
     }
 }
-

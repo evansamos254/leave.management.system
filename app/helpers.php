@@ -290,6 +290,39 @@ function format_date(?string $date): string
     return $date ? date('d M Y', strtotime($date)) : '-';
 }
 
+function is_valid_past_or_today_date(string $date): bool
+{
+    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+        return false;
+    }
+
+    return $parsed <= new DateTime('today');
+}
+
+function uploaded_file_is_pdf(array $file): bool
+{
+    $extension = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+    if ($extension !== 'pdf') {
+        return false;
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_file($tmpName) || !is_readable($tmpName)) {
+        return false;
+    }
+
+    $handle = @fopen($tmpName, 'rb');
+    if (!$handle) {
+        return false;
+    }
+
+    $header = fread($handle, 5);
+    fclose($handle);
+
+    return $header === '%PDF-';
+}
+
 function format_days(mixed $value, string $default = '-'): string
 {
     if ($value === null || $value === '') {
@@ -306,5 +339,12 @@ function format_days(mixed $value, string $default = '-'): string
 function app_log(Throwable $throwable): void
 {
     $line = '[' . date('Y-m-d H:i:s') . '] ' . $throwable->getMessage() . PHP_EOL . $throwable->getTraceAsString() . PHP_EOL;
-    file_put_contents(dirname(__DIR__) . '/storage/logs/app.log', $line, FILE_APPEND);
+    $logDir = dirname(__DIR__) . '/storage/logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0775, true);
+    }
+
+    if (is_dir($logDir) && is_writable($logDir)) {
+        @file_put_contents($logDir . '/app.log', $line, FILE_APPEND | LOCK_EX);
+    }
 }

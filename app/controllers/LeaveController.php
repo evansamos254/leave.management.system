@@ -140,7 +140,7 @@ class LeaveController
                 NotificationService::create((int) $supervisor['user_id'], 'Leave request awaiting review', $message, url('approvals'));
             }
         } else {
-            NotificationService::notifyRoles(['supervisor'], 'Leave request awaiting review', $message, url('approvals'));
+            NotificationService::notifyRolesInEmployeeDepartment(['supervisor'], (int) $employee['id'], 'Leave request awaiting review', $message, url('approvals'));
         }
 
         set_flash('success', 'Leave request submitted successfully.');
@@ -292,7 +292,7 @@ class LeaveController
                     NotificationService::create((int) $supervisor['user_id'], 'Leave request updated', $message, url('approvals'));
                 }
             } else {
-                NotificationService::notifyRoles(['supervisor'], 'Leave request updated', $message, url('approvals'));
+                NotificationService::notifyRolesInEmployeeDepartment(['supervisor'], (int) $request['employee_id'], 'Leave request updated', $message, url('approvals'));
             }
         }
 
@@ -508,8 +508,8 @@ class LeaveController
         }
 
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($extension, app_config('allowed_upload_extensions'), true)) {
-            $errors[] = 'Attachment type is not allowed.';
+        if (!in_array($extension, app_config('allowed_upload_extensions'), true) || !uploaded_file_is_pdf($file)) {
+            $errors[] = 'Supporting attachment must be a PDF file.';
             return null;
         }
 
@@ -557,7 +557,7 @@ class LeaveController
             return true;
         }
 
-        return in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true);
+        return AccessScopeService::canAccessLeaveRequest($request, $user);
     }
 
     private function canApprove(array $request): bool
@@ -574,6 +574,10 @@ class LeaveController
         }
 
         if (($request['status'] ?? '') !== 'pending_supervisor') {
+            return false;
+        }
+
+        if (!AccessScopeService::canAccessLeaveRequest($request, $user)) {
             return false;
         }
 
@@ -596,6 +600,10 @@ class LeaveController
         }
 
         if ($user['role'] === 'supervisor') {
+            if (!AccessScopeService::canAccessLeaveRequest($request, $user)) {
+                return false;
+            }
+
             $supervisorEmployeeId = (int) ($user['employee_id'] ?? 0);
             if (!empty($request['supervisor_id']) && (int) $request['supervisor_id'] !== $supervisorEmployeeId) {
                 return false;

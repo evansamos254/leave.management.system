@@ -6,9 +6,12 @@ class ReportsController
     {
         require_role(['admin', 'hr', 'director', 'supervisor']);
 
-        $filters = $this->filtersFromRequest();
+        $user = current_user();
+        $filters = $this->filtersFromRequest($user);
         $selectedDepartment = $filters['department_id'] ? Department::find($filters['department_id']) : null;
         $selectedDirectorate = $this->selectedDirectorate($filters, $selectedDepartment);
+        $directorates = $this->visibleDirectorates($user);
+        $departments = $this->visibleDepartments($user);
 
         view('reports/index', [
             'title' => 'Reports',
@@ -16,8 +19,8 @@ class ReportsController
             'to' => $filters['to'],
             'directorateId' => $filters['directorate_id'],
             'departmentId' => $filters['department_id'],
-            'directorates' => Directorate::all(),
-            'departments' => Department::all(),
+            'directorates' => $directorates,
+            'departments' => $departments,
             'selectedDirectorate' => $selectedDirectorate,
             'selectedDepartment' => $selectedDepartment,
             'reportQuery' => http_build_query(array_filter([
@@ -30,9 +33,10 @@ class ReportsController
                 $filters['from'] ?: null,
                 $filters['to'] ?: null,
                 $filters['directorate_id'] ?: null,
-                $filters['department_id'] ?: null
+                $filters['department_id'] ?: null,
+                $user
             ),
-            'pending' => LeaveRequest::pendingForRole(current_user()['role'], current_user()['employee_id'] ? (int) current_user()['employee_id'] : null),
+            'pending' => LeaveRequest::pendingForRole($user['role'], $user['employee_id'] ? (int) $user['employee_id'] : null, $user),
         ]);
     }
 
@@ -40,12 +44,14 @@ class ReportsController
     {
         require_role(['admin', 'hr', 'director', 'supervisor']);
 
-        $filters = $this->filtersFromRequest();
+        $user = current_user();
+        $filters = $this->filtersFromRequest($user);
         $summary = LeaveRequest::reportSummary(
             $filters['from'] ?: null,
             $filters['to'] ?: null,
             $filters['directorate_id'] ?: null,
-            $filters['department_id'] ?: null
+            $filters['department_id'] ?: null,
+            $user
         );
 
         header('Content-Type: text/csv');
@@ -76,18 +82,21 @@ class ReportsController
     {
         require_role(['admin', 'hr', 'director', 'supervisor']);
 
-        $filters = $this->filtersFromRequest();
+        $user = current_user();
+        $filters = $this->filtersFromRequest($user);
         $summary = LeaveRequest::reportSummary(
             $filters['from'] ?: null,
             $filters['to'] ?: null,
             $filters['directorate_id'] ?: null,
-            $filters['department_id'] ?: null
+            $filters['department_id'] ?: null,
+            $user
         );
         $requests = LeaveRequest::reportDetails(
             $filters['from'] ?: null,
             $filters['to'] ?: null,
             $filters['directorate_id'] ?: null,
-            $filters['department_id'] ?: null
+            $filters['department_id'] ?: null,
+            $user
         );
         $department = $filters['department_id'] ? Department::find($filters['department_id']) : null;
         $directorate = $this->selectedDirectorate($filters, $department);
@@ -97,7 +106,7 @@ class ReportsController
             'to' => $filters['to'],
             'directorate' => $directorate,
             'department' => $department,
-            'generated_by' => current_user()['full_name'] ?? 'System user',
+            'generated_by' => $user['full_name'] ?? 'System user',
         ], $summary, $requests);
 
         header('Content-Type: application/pdf');
@@ -106,7 +115,7 @@ class ReportsController
         echo $pdf;
     }
 
-    private function filtersFromRequest(): array
+    private function filtersFromRequest(array $user): array
     {
         $from = trim($_GET['from'] ?? '');
         $to = trim($_GET['to'] ?? '');
@@ -133,12 +142,12 @@ class ReportsController
             $departmentId = 0;
         }
 
-        return [
+        return AccessScopeService::forcedFilters([
             'from' => $from,
             'to' => $to,
             'directorate_id' => $directorateId,
             'department_id' => $departmentId,
-        ];
+        ], $user);
     }
 
     private function selectedDirectorate(array $filters, ?array $department): ?array
@@ -155,5 +164,37 @@ class ReportsController
         }
 
         return null;
+    }
+
+    private function visibleDirectorates(array $user): array
+    {
+        if (!AccessScopeService::isDepartmentScoped($user)) {
+            return Directorate::all();
+        }
+
+        $directorateId = AccessScopeService::directorateId($user);
+        if (!$directorateId) {
+            return [];
+        }
+
+        $directorate = Directorate::find($directorateId);
+
+        return $directorate ? [$directorate] : [];
+    }
+
+    private function visibleDepartments(array $user): array
+    {
+        if (!AccessScopeService::isDepartmentScoped($user)) {
+            return Department::all();
+        }
+
+        $departmentId = AccessScopeService::departmentId($user);
+        if (!$departmentId) {
+            return [];
+        }
+
+        $department = Department::find($departmentId);
+
+        return $department ? [$department] : [];
     }
 }

@@ -36,6 +36,9 @@
         <div class="auth-footer">
             <a href="<?= e(url('login')) ?>">Back to login</a>
         </div>
+        <footer class="system-footer">
+            <span>Copyright <?= e(date('Y')) ?> County Government of Busia. All rights reserved.</span>
+        </footer>
     </main>
     <script src="<?= e(asset('js/app.js')) ?>"></script>
 </body>

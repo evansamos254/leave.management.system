@@ -58,6 +58,9 @@
                 <a href="<?= e(url('register')) ?>">Request staff account</a>
             </div>
         </section>
+        <footer class="system-footer">
+            <span>Copyright <?= e(date('Y')) ?> County Government of Busia. All rights reserved.</span>
+        </footer>
     </main>
     <script src="<?= e(asset('js/app.js')) ?>"></script>
 </body>

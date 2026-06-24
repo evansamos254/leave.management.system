@@ -11,7 +11,7 @@ class ApprovalController
 
         view('approvals/index', [
             'title' => $user['role'] === 'admin' ? 'Approval Progress' : 'Approvals',
-            'requests' => LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null),
+            'requests' => LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null, $user),
             'user' => $user,
         ]);
     }
@@ -127,6 +127,10 @@ class ApprovalController
         }
 
         if (($request['status'] ?? '') !== 'pending_supervisor') {
+            return false;
+        }
+
+        if (!AccessScopeService::canAccessLeaveRequest($request, $user)) {
             return false;
         }
 

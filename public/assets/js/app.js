@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!type) {
                 setPlannerText(typeHint, 'Select a leave type to see its rules.');
                 setPlannerText(daysHint, 'Working days are calculated from the selected start and end dates.');
-                setPlannerText(attachmentHint, 'Attachment guidance will appear after selecting a leave type.');
+                setPlannerText(attachmentHint, 'PDF attachment guidance will appear after selecting a leave type.');
                 return;
             }
 
@@ -254,18 +254,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (type.requiresAttachment) {
-                setPlannerText(attachmentHint, 'Attachment is required for this leave type.');
+                setPlannerText(attachmentHint, 'PDF attachment is required for this leave type.');
             } else if (type.attachmentAfterDays !== null) {
                 const threshold = Number(type.attachmentAfterDays);
                 const requiredNow = requestedDays >= threshold;
                 setPlannerText(
                     attachmentHint,
                     requiredNow
-                        ? `Attachment is required because this request is ${requestedDays} working days or more.`
-                        : `Attachment is required when this leave reaches ${formatNumber(threshold)} working days.`
+                        ? `PDF attachment is required because this request is ${requestedDays} working days or more.`
+                        : `PDF attachment is required when this leave reaches ${formatNumber(threshold)} working days.`
                 );
             } else {
-                setPlannerText(attachmentHint, 'No attachment is required unless HR asks for supporting evidence.');
+                setPlannerText(attachmentHint, 'No attachment is required unless HR asks for PDF supporting evidence.');
             }
         }
 

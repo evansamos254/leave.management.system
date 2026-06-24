@@ -279,8 +279,8 @@ class AuthController
             $errors[] = 'Password confirmation does not match.';
         }
 
-        if ($data['employment_date'] !== '' && strtotime($data['employment_date']) === false) {
-            $errors[] = 'Employment date is invalid.';
+        if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {
+            $errors[] = 'Employment date is invalid or cannot be in the future.';
         }
 
         return $errors;
@@ -341,8 +341,8 @@ class AuthController
         }
 
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($extension, app_config('employment_document_extensions'), true)) {
-            $errors[] = 'Supporting document must be a PDF, Word document, JPG, or PNG file.';
+        if (!in_array($extension, app_config('employment_document_extensions'), true) || !uploaded_file_is_pdf($file)) {
+            $errors[] = 'Supporting document must be a PDF file.';
             return null;
         }
 

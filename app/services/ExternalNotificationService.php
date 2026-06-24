@@ -4,6 +4,11 @@ class ExternalNotificationService
 {
     private static string $lastEmailError = '';
 
+    public static function lastEmailError(): string
+    {
+        return self::$lastEmailError;
+    }
+
     public static function accountRequestReceived(string $name, string $email, ?string $phone = null): bool
     {
         return self::sendToContact(
@@ -194,7 +199,14 @@ class ExternalNotificationService
         $logMessage = $logMessage ?? $message;
         self::$lastEmailError = '';
 
-        if (empty($config['enabled']) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (empty($config['enabled'])) {
+            self::$lastEmailError = 'Email notifications are disabled';
+            self::log('email', $email, $subject, $logMessage, 'skipped');
+            return false;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            self::$lastEmailError = 'Recipient email address is invalid';
             self::log('email', $email, $subject, $logMessage, 'skipped');
             return false;
         }
@@ -368,6 +380,13 @@ class ExternalNotificationService
             PHP_EOL
         );
 
-        file_put_contents(dirname(__DIR__, 2) . '/storage/logs/outbound-notifications.log', $line, FILE_APPEND);
+        $logDir = dirname(__DIR__, 2) . '/storage/logs';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0775, true);
+        }
+
+        if (is_dir($logDir) && is_writable($logDir)) {
+            @file_put_contents($logDir . '/outbound-notifications.log', $line, FILE_APPEND | LOCK_EX);
+        }
     }
 }

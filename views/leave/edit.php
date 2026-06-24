@@ -100,8 +100,8 @@
                 </div>
                 <label>
                     <span>Supporting Attachment</span>
-                    <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                    <small data-planner-attachment>Attachment guidance will appear after selecting a leave type.</small>
+                    <input type="file" name="attachment" accept=".pdf,application/pdf">
+                    <small data-planner-attachment>PDF attachment guidance will appear after selecting a leave type.</small>
                     <?php if ($request['attachment_path']): ?>
                         <small>Existing attachment will be kept unless you choose a new one.</small>
                     <?php endif; ?>

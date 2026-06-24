@@ -1005,6 +1005,19 @@ input[readonly] {
     font-weight: 800;
 }
 
+.system-footer {
+    margin-top: 28px;
+    padding: 14px 0 4px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.auth-page .system-footer {
+    width: 100%;
+    padding-bottom: 12px;
+}
+
 @keyframes authPageIn {
     from {
         opacity: 0;

@@ -64,15 +64,19 @@ class Employee
         return $employee ?: null;
     }
 
-    public static function approvers(): array
+    public static function approvers(?array $viewer = null): array
     {
-        $stmt = db()->query(
+        $params = [];
+        $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
+        $stmt = db()->prepare(
             "SELECT e.id AS employee_id, u.full_name, u.role, e.staff_id
              FROM employees e
              JOIN users u ON u.id = e.user_id
              WHERE u.role IN ('supervisor', 'hr', 'director', 'admin') AND u.status = 'active'
+             $scope
              ORDER BY u.full_name"
         );
+        $stmt->execute($params);
 
         return $stmt->fetchAll();
     }

@@ -18,9 +18,21 @@ Admin or HR users can still create active worker accounts directly from `Workers
 
 Applicants receive an external notification when they submit an account request and when ICT/Admin approves or rejects it.
 
-Email uses PHP `mail()` by default. SMS needs a provider gateway; add the gateway details in `config/app.php` under `notifications.sms`.
+Email uses SMTP. On the live server, either set the `LEAVE_SMTP_PASSWORD` environment variable or create `config/mail.local.php` with:
 
-All outbound attempts are recorded in `storage/logs/outbound-notifications.log`.
+```php
+<?php
+
+return [
+    'smtp' => [
+        'password' => 'your gmail app password',
+    ],
+];
+```
+
+SMS needs a provider gateway; add the gateway details in `config/app.php` under `notifications.sms`.
+
+All outbound attempts are recorded in `storage/logs/outbound-notifications.log`. Make sure the live server has a writable `storage/logs` directory.
 
 ## Setup
 

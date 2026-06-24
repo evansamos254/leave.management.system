@@ -101,12 +101,13 @@
                 </label>
                 <label>
                     <span>Employment date</span>
-                    <input type="date" name="employment_date" value="<?= e(old('employment_date')) ?>">
+                    <input type="date" name="employment_date" value="<?= e(old('employment_date')) ?>" max="<?= e(date('Y-m-d')) ?>">
+                    <small>Select today or a past date.</small>
                 </label>
                 <label class="span-2">
                     <span>Employment supporting document</span>
-                    <input type="file" name="employment_document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png" required>
-                    <small>Upload a county employment letter from HR, appointment letter, staff ID copy, or other proof of employment.</small>
+                    <input type="file" name="employment_document" accept=".pdf,application/pdf" required>
+                    <small>Upload a PDF county employment letter from HR, appointment letter, staff ID copy, or other proof of employment.</small>
                 </label>
                 <label>
                     <span>Password</span>
@@ -128,6 +129,9 @@
                 <a href="<?= e(url('login')) ?>">Back to login</a>
             </div>
         </section>
+        <footer class="system-footer">
+            <span>Copyright <?= e(date('Y')) ?> County Government of Busia. All rights reserved.</span>
+        </footer>
     </main>
     <?php unset($_SESSION['old']); ?>
     <script src="<?= e(asset('js/app.js')) ?>"></script>

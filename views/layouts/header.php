@@ -58,6 +58,8 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                 <a class="<?= $activeRoute === 'admin/users' ? 'active' : '' ?>" href="<?= e(url('admin/users')) ?>">User Managements</a>
                 <a class="<?= str_starts_with($activeRoute, 'admin/account-requests') ? 'active' : '' ?>" href="<?= e(url('admin/account-requests')) ?>">Account Requests</a>
                 <a class="<?= $activeRoute === 'admin/leave-requests' ? 'active' : '' ?>" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
+            <?php endif; ?>
+            <?php if ($authUser && in_array($authUser['role'], ['admin', 'hr'], true)): ?>
                 <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Activity</a>
             <?php endif; ?>
             <?php if ($authUser && $authUser['role'] === 'admin'): ?>

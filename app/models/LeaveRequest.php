@@ -58,10 +58,10 @@ class LeaveRequest
     {
         $stmt = db()->prepare(
             'SELECT lr.*, lt.name AS leave_type_name, lt.requires_balance,
-                    e.user_id AS employee_user_id, e.staff_id, e.designation, e.supervisor_id,
+                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     ru.full_name AS resumed_by_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -111,13 +111,15 @@ class LeaveRequest
         return $request ?: null;
     }
 
-    public static function allRequests(?string $status = null, ?string $search = null): array
+    public static function allRequests(?string $status = null, ?string $search = null, ?array $viewer = null): array
     {
+        $params = [];
+        $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
         $sql = "SELECT lr.*, lt.name AS leave_type_name,
-                       e.staff_id,
+                       e.staff_id, e.department_id,
                        u.full_name AS employee_name,
                        u.email AS employee_email,
-                       d.name AS department_name,
+                       d.directorate_id, d.name AS department_name,
                        dir.name AS directorate_name
                 FROM leave_requests lr
                 JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -125,8 +127,8 @@ class LeaveRequest
                 JOIN users u ON u.id = e.user_id
                 LEFT JOIN departments d ON d.id = e.department_id
                 LEFT JOIN directorates dir ON dir.id = d.directorate_id
-                WHERE 1 = 1";
-        $params = [];
+                WHERE 1 = 1
+                $scope";
 
         if ($status !== null && $status !== '') {
             if ($status === 'pending') {
@@ -151,7 +153,7 @@ class LeaveRequest
         return $stmt->fetchAll();
     }
 
-    public static function pendingForRole(string $role, ?int $employeeId = null): array
+    public static function pendingForRole(string $role, ?int $employeeId = null, ?array $viewer = null): array
     {
         $status = ApprovalWorkflowService::statusForRole($role);
         if (!$status && $role !== 'admin') {
@@ -159,9 +161,9 @@ class LeaveRequest
         }
 
         $sql = "SELECT lr.*, lt.name AS leave_type_name,
-                       e.staff_id, e.supervisor_id,
+                       e.staff_id, e.department_id, e.supervisor_id,
                        u.full_name AS employee_name,
-                       d.name AS department_name,
+                       d.directorate_id, d.name AS department_name,
                        dir.name AS directorate_name
                 FROM leave_requests lr
                 JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -185,6 +187,8 @@ class LeaveRequest
             $params[] = $employeeId;
         }
 
+        $sql .= AccessScopeService::employeeScopeSql('e', $viewer, $params);
+
         $sql .= ' ORDER BY lr.submitted_at ASC';
 
         $stmt = db()->prepare($sql);
@@ -200,9 +204,9 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
-                    e.staff_id, e.supervisor_id,
+                    e.staff_id, e.department_id, e.supervisor_id,
                     u.full_name AS employee_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -242,8 +246,9 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
+                    e.department_id,
                     u.full_name AS employee_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -271,8 +276,9 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
+                    e.department_id,
                     u.full_name AS employee_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -299,8 +305,9 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
+                    e.department_id,
                     u.full_name AS employee_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -326,14 +333,10 @@ class LeaveRequest
         ];
 
         $params = [];
-        $status = ApprovalWorkflowService::statusForRole($role);
         $statusFilter = "lr.status = 'pending_supervisor'";
 
-        if ($role !== 'admin') {
-            if (!$status) {
-                return $counts;
-            }
-
+        if ($role === 'supervisor') {
+            $status = ApprovalWorkflowService::statusForRole($role);
             $statusFilter = 'lr.status = ?';
             $params[] = $status;
         }
@@ -380,13 +383,26 @@ class LeaveRequest
         $stmt->execute([$userId, $notes, $id]);
     }
 
-    public static function counts(?int $employeeId = null): array
+    public static function counts(?int $employeeId = null, ?array $viewer = null): array
     {
-        $where = $employeeId ? 'WHERE employee_id = ?' : '';
+        $params = [];
+        $where = 'WHERE 1 = 1';
+
+        if ($employeeId) {
+            $where .= ' AND lr.employee_id = ?';
+            $params[] = $employeeId;
+        }
+
+        $where .= AccessScopeService::employeeScopeSql('e', $viewer, $params);
+
         $stmt = db()->prepare(
-            "SELECT status, COUNT(*) AS total FROM leave_requests $where GROUP BY status"
+            "SELECT lr.status, COUNT(*) AS total
+             FROM leave_requests lr
+             JOIN employees e ON e.id = lr.employee_id
+             $where
+             GROUP BY lr.status"
         );
-        $stmt->execute($employeeId ? [$employeeId] : []);
+        $stmt->execute($params);
 
         $counts = [
             'pending' => 0,
@@ -411,9 +427,9 @@ class LeaveRequest
         return $counts;
     }
 
-    public static function reportSummary(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null): array
+    public static function reportSummary(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null, ?array $viewer = null): array
     {
-        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId);
+        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId, $viewer);
 
         $stmt = db()->prepare(
             "SELECT lt.name AS leave_type_name,
@@ -433,15 +449,15 @@ class LeaveRequest
         return $stmt->fetchAll();
     }
 
-    public static function reportDetails(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null): array
+    public static function reportDetails(?string $from = null, ?string $to = null, ?int $directorateId = null, ?int $departmentId = null, ?array $viewer = null): array
     {
-        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId);
+        [$where, $params] = self::reportWhere($from, $to, $directorateId, $departmentId, $viewer);
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
-                    e.staff_id, e.designation,
+                    e.staff_id, e.department_id, e.designation,
                     u.full_name AS employee_name,
-                    d.name AS department_name,
+                    d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -457,7 +473,7 @@ class LeaveRequest
         return $stmt->fetchAll();
     }
 
-    private static function reportWhere(?string $from, ?string $to, ?int $directorateId, ?int $departmentId): array
+    private static function reportWhere(?string $from, ?string $to, ?int $directorateId, ?int $departmentId, ?array $viewer = null): array
     {
         $params = [];
         $where = "WHERE lr.status = 'approved'";
@@ -482,22 +498,22 @@ class LeaveRequest
             $params[] = $departmentId;
         }
 
+        $where .= AccessScopeService::employeeScopeSql('e', $viewer, $params);
+
         return [$where, $params];
     }
 
     private static function visibilityScope(string $employeeAlias, string $role, ?int $employeeId, array &$params): string
     {
-        if ($role === 'supervisor' && $employeeId) {
-            $params[] = $employeeId;
-            $params[] = $employeeId;
-
-            return " AND ($employeeAlias.supervisor_id = ? OR $employeeAlias.id = ?)";
-        }
-
         if ($role === 'employee' && $employeeId) {
             $params[] = $employeeId;
 
             return " AND $employeeAlias.id = ?";
+        }
+
+        $viewer = function_exists('current_user') ? current_user() : null;
+        if ($viewer && ($viewer['role'] ?? '') === $role) {
+            return AccessScopeService::employeeScopeSql($employeeAlias, $viewer, $params);
         }
 
         return '';
