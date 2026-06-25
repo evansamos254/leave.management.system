@@ -2,6 +2,8 @@
 
 class LeaveType
 {
+    private const BALANCE_EXEMPT_KEYWORDS = ['sick', 'maternity'];
+
     public static function active(): array
     {
         $stmt = db()->query('SELECT * FROM leave_types WHERE is_active = 1 ORDER BY name');
@@ -47,6 +49,10 @@ class LeaveType
 
     public static function save(array $data): void
     {
+        if (self::isBalanceExemptName((string) ($data['name'] ?? ''))) {
+            $data['requires_balance'] = 0;
+        }
+
         if (!empty($data['id'])) {
             $stmt = db()->prepare(
                 'UPDATE leave_types
@@ -84,10 +90,32 @@ class LeaveType
         return User::normalizeGender($gender) === $eligibility;
     }
 
+    public static function isBalanceTracked(array $type): bool
+    {
+        if ((int) ($type['requires_balance'] ?? 1) !== 1) {
+            return false;
+        }
+
+        return !self::isBalanceExemptName((string) ($type['name'] ?? ''));
+    }
+
     public static function normalizeEligibility(?string $eligibility): string
     {
         $eligibility = strtolower(trim((string) $eligibility));
 
         return array_key_exists($eligibility, leave_gender_options()) ? $eligibility : 'any';
+    }
+
+    private static function isBalanceExemptName(string $name): bool
+    {
+        $name = strtolower(trim($name));
+
+        foreach (self::BALANCE_EXEMPT_KEYWORDS as $keyword) {
+            if (str_contains($name, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

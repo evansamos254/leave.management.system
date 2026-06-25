@@ -458,16 +458,17 @@ class LeaveController
         $types = [];
         foreach ($leaveTypes as $type) {
             $balance = $balancesByType[(int) $type['id']] ?? null;
+            $tracksBalance = LeaveType::isBalanceTracked($type);
             $types[] = [
                 'id' => (int) $type['id'],
                 'name' => $type['name'],
                 'genderEligibility' => $type['gender_eligibility'] ?? 'any',
                 'defaultEntitlement' => (float) $type['default_entitlement'],
-                'requiresBalance' => (int) $type['requires_balance'] === 1,
+                'requiresBalance' => $tracksBalance,
                 'requiresAttachment' => (int) $type['requires_attachment'] === 1,
                 'attachmentAfterDays' => $type['attachment_after_days'] !== null ? (float) $type['attachment_after_days'] : null,
                 'isPaid' => (int) $type['is_paid'] === 1,
-                'availableDays' => $balance ? (float) $balance['available_days'] : null,
+                'availableDays' => $tracksBalance && $balance ? (float) $balance['available_days'] : null,
             ];
         }
 

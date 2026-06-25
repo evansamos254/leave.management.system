@@ -96,6 +96,10 @@ class LeaveBalanceService
         $types = LeaveType::active();
 
         foreach ($types as $type) {
+            if (!LeaveType::isBalanceTracked($type)) {
+                continue;
+            }
+
             $stmt = db()->prepare(
                 'INSERT IGNORE INTO leave_balances (employee_id, leave_type_id, year, entitlement)
                  VALUES (?, ?, ?, ?)'
@@ -119,12 +123,20 @@ class LeaveBalanceService
         );
         $stmt->execute([$employeeId, $year]);
 
-        return $stmt->fetchAll();
+        return array_values(array_filter(
+            $stmt->fetchAll(),
+            fn (array $balance): bool => LeaveType::isBalanceTracked($balance)
+        ));
     }
 
     public static function hasEnoughBalance(int $employeeId, int $leaveTypeId, float $days, ?int $year = null): bool
     {
         $year = $year ?? (int) date('Y');
+        $type = LeaveType::find($leaveTypeId);
+        if (!$type || !LeaveType::isBalanceTracked($type)) {
+            return true;
+        }
+
         self::ensureBalances($employeeId, $year);
 
         $stmt = db()->prepare(
@@ -142,22 +154,18 @@ class LeaveBalanceService
             return false;
         }
 
-        if ((int) $row['requires_balance'] === 0) {
-            return true;
-        }
-
         return (float) $row['available_days'] >= $days;
     }
 
     public static function deduct(int $employeeId, int $leaveTypeId, float $days, ?int $year = null): void
     {
         $year = $year ?? (int) date('Y');
-        self::ensureBalances($employeeId, $year);
-
         $type = LeaveType::find($leaveTypeId);
-        if ($type && (int) $type['requires_balance'] === 0) {
+        if (!$type || !LeaveType::isBalanceTracked($type)) {
             return;
         }
+
+        self::ensureBalances($employeeId, $year);
 
         $stmt = db()->prepare(
             'UPDATE leave_balances

@@ -258,8 +258,8 @@ INSERT INTO leave_types
   (name, gender_eligibility, default_entitlement, requires_balance, requires_attachment, attachment_after_days, is_paid, is_active)
 VALUES
   ('Annual Leave', 'any', 24.00, 1, 0, NULL, 1, 1),
-  ('Sick Leave', 'any', 12.00, 1, 0, 3.00, 1, 1),
-  ('Maternity Leave', 'female', 90.00, 1, 0, NULL, 1, 1),
+  ('Sick Leave', 'any', 12.00, 0, 0, 3.00, 1, 1),
+  ('Maternity Leave', 'female', 90.00, 0, 0, NULL, 1, 1),
   ('Paternity Leave', 'male', 14.00, 1, 0, NULL, 1, 1),
   ('Compassionate Leave', 'any', 5.00, 1, 1, NULL, 1, 1),
   ('Study Leave', 'any', 0.00, 0, 0, NULL, 1, 1),

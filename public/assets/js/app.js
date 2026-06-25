@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (type.requiresBalance && available !== null) {
                 setPlannerText(daysHint, `Working days are counted from the selected date range. ${formatNumber(available)} working day${available === 1 ? '' : 's'} currently available.`);
             } else {
-                setPlannerText(daysHint, 'Working days are counted from the selected date range. This leave type does not reduce the normal leave balance.');
+                setPlannerText(daysHint, 'Working days are counted from the selected date range. This leave type does not count against the normal leave balance.');
             }
 
             if (type.requiresAttachment) {
@@ -275,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!type.requiresBalance) {
-                return 'No deduction';
+                return 'Uncounted';
             }
 
             if (type.availableDays === null) {
