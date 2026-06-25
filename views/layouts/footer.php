@@ -1,4 +1,4 @@
-        <footer class="system-footer">
+        <footer class="site-footer">
             <span>Copyright <?= e(date('Y')) ?> County Government of Busia. All rights reserved.</span>
         </footer>
     </main>

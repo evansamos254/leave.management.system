@@ -6,7 +6,7 @@
     <div class="panel-heading">
         <div>
             <p class="eyebrow"><?= e(role_label($viewer['role'])) ?></p>
-            <h2>User Managements</h2>
+            <h2>User Management</h2>
         </div>
     </div>
 
