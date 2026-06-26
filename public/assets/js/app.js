@@ -391,21 +391,23 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlanner();
     }
 
-    const menuToggle = document.querySelector('[data-menu-toggle]');
+    const menuToggles = document.querySelectorAll('[data-menu-toggle]');
     const mobileSidebar = document.querySelector('[data-mobile-sidebar]');
     const menuOverlay = document.querySelector('[data-menu-overlay]');
     const menuClose = document.querySelector('[data-menu-close]');
 
-    if (menuToggle && mobileSidebar && menuOverlay) {
+    if (menuToggles.length && mobileSidebar && menuOverlay) {
         function setMobileMenu(open) {
             mobileSidebar.classList.toggle('is-open', open);
             menuOverlay.hidden = !open;
-            menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            menuToggles.forEach((t) => t.setAttribute('aria-expanded', open ? 'true' : 'false'));
             document.body.classList.toggle('menu-open', open);
         }
 
-        menuToggle.addEventListener('click', () => {
-            setMobileMenu(!mobileSidebar.classList.contains('is-open'));
+        menuToggles.forEach((toggle) => {
+            toggle.addEventListener('click', () => {
+                setMobileMenu(!mobileSidebar.classList.contains('is-open'));
+            });
         });
 
         menuOverlay.addEventListener('click', () => {
@@ -415,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (menuClose) {
             menuClose.addEventListener('click', () => {
                 setMobileMenu(false);
-                menuToggle.focus();
             });
         }
 
@@ -434,7 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && mobileSidebar.classList.contains('is-open')) {
                 setMobileMenu(false);
-                menuToggle.focus();
             }
         });
     }
@@ -468,4 +468,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    document.querySelectorAll('.password-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = this.closest('.password-wrap').querySelector('input');
+            var open = this.querySelector('.eye-open');
+            var closed = this.querySelector('.eye-closed');
+            if (input.type === 'password') {
+                input.type = 'text';
+                open.style.display = 'none';
+                closed.style.display = 'block';
+                this.setAttribute('aria-label', 'Hide password');
+            } else {
+                input.type = 'password';
+                open.style.display = 'block';
+                closed.style.display = 'none';
+                this.setAttribute('aria-label', 'Show password');
+            }
+        });
+    });
 });
