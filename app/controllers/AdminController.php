@@ -288,6 +288,7 @@ class AdminController
                 'password_hash' => PasswordService::make($generatedPassword),
                 'role' => $data['role'],
                 'status' => 'active',
+                'must_change_password' => 1,
             ]);
 
             $employeeId = Employee::create([
@@ -498,6 +499,7 @@ class AdminController
 
         $temporaryPassword = PasswordService::temporaryPassword();
         User::updatePassword($id, PasswordService::make($temporaryPassword));
+        User::setPasswordChangeRequired($id, true);
         User::clearLoginLock($id);
         AuditService::record('admin_reset_staff_password', 'users', $id);
 

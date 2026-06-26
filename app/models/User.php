@@ -56,8 +56,8 @@ class User
     public static function create(array $data): int
     {
         $stmt = db()->prepare(
-            'INSERT INTO users (full_name, email, national_id, gender, password_hash, role, phone, employment_document_path, status)
-             VALUES (:full_name, :email, :national_id, :gender, :password_hash, :role, :phone, :employment_document_path, :status)'
+            'INSERT INTO users (full_name, email, national_id, gender, password_hash, role, phone, employment_document_path, status, must_change_password)
+             VALUES (:full_name, :email, :national_id, :gender, :password_hash, :role, :phone, :employment_document_path, :status, :must_change_password)'
         );
 
         $stmt->execute([
@@ -70,6 +70,7 @@ class User
             'phone' => $data['phone'] ?? null,
             'employment_document_path' => $data['employment_document_path'] ?? null,
             'status' => $data['status'] ?? 'active',
+            'must_change_password' => !empty($data['must_change_password']) ? 1 : 0,
         ]);
 
         return (int) db()->lastInsertId();
@@ -149,6 +150,12 @@ class User
     {
         $stmt = db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
         $stmt->execute([$passwordHash, $id]);
+    }
+
+    public static function setPasswordChangeRequired(int $id, bool $required): void
+    {
+        $stmt = db()->prepare('UPDATE users SET must_change_password = ? WHERE id = ?');
+        $stmt->execute([$required ? 1 : 0, $id]);
     }
 
     public static function delete(int $id): void

@@ -34,6 +34,7 @@ CREATE TABLE users (
   status ENUM('pending', 'active', 'inactive', 'rejected') NOT NULL DEFAULT 'pending',
   rejection_reason TEXT NULL,
   last_login_at DATETIME NULL,
+  must_change_password TINYINT(1) NOT NULL DEFAULT 0,
   failed_login_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
   locked_until DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

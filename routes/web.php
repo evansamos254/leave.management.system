@@ -23,6 +23,7 @@ try {
         'profile/update' => is_post()
             ? (new DashboardController())->updateProfile()
             : (new DashboardController())->index(),
+        'profile/password/setup' => (new DashboardController())->passwordSetup(),
         'profile/password' => is_post()
             ? (new DashboardController())->updatePassword()
             : (new DashboardController())->index(),

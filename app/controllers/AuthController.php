@@ -67,6 +67,11 @@ class AuthController
         User::updateLastLogin((int) $user['id']);
         AuditService::record('login', 'users', (int) $user['id'], (int) $user['id']);
 
+        if (!empty($user['must_change_password'])) {
+            set_flash('error', 'Please change your temporary password before continuing.');
+            redirect('profile/password/setup');
+        }
+
         redirect('dashboard');
     }
 
@@ -84,26 +89,36 @@ class AuthController
 
         $user = User::findByLoginIdentifier($identifier);
 
-        if ($user && $user['status'] === 'active') {
+        if (!$user || $user['status'] !== 'active') {
+            set_flash('error', 'The account does not exist or is not active.');
+            redirect('forgot-password');
+        }
+
+        if ($user['status'] === 'active') {
             $temporaryPassword = PasswordService::temporaryPassword();
 
             try {
                 db()->beginTransaction();
                 User::updatePassword((int) $user['id'], PasswordService::make($temporaryPassword));
+                User::setPasswordChangeRequired((int) $user['id'], true);
 
                 if (ExternalNotificationService::passwordReset($user, $temporaryPassword)) {
                     AuditService::record('forgot_password_reset', 'users', (int) $user['id'], (int) $user['id']);
                     db()->commit();
                 } else {
                     db()->rollBack();
+                    set_flash('error', 'Temporary password could not be sent. Please contact ICT.');
+                    redirect('forgot-password');
                 }
             } catch (Throwable $throwable) {
                 db()->rollBack();
                 app_log($throwable);
+                set_flash('error', 'Temporary password could not be generated. Please try again.');
+                redirect('forgot-password');
             }
         }
 
-        set_flash('success', 'If the account exists and is active, a temporary password has been sent to the registered email address.');
+        set_flash('success', 'A temporary password has been sent to the registered email address.');
         redirect('login');
     }
 

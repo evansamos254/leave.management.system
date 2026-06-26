@@ -1000,9 +1000,17 @@ input[readonly] {
 }
 
 .auth-link-row a,
+.auth-link-row button,
 .auth-footer a {
     color: var(--busia-deep-green);
     font-weight: 800;
+}
+
+.auth-link-row button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
 }
 
 .system-footer {

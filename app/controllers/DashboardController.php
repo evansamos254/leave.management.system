@@ -144,9 +144,30 @@ class DashboardController
         }
 
         User::updatePassword((int) $user['id'], PasswordService::make($newPassword));
+        User::setPasswordChangeRequired((int) $user['id'], false);
         AuditService::record('update_password', 'users', (int) $user['id']);
         set_flash('success', 'Password changed successfully.');
+
+        if (!empty($user['must_change_password'])) {
+            redirect('dashboard');
+        }
+
         redirect($redirectTo);
+    }
+
+    public function passwordSetup(): void
+    {
+        require_auth();
+
+        $user = current_user();
+        if (!$user || empty($user['must_change_password'])) {
+            redirect('dashboard');
+        }
+
+        plain_view('auth/force-password-change', [
+            'title' => 'Change Password',
+            'user' => $user,
+        ]);
     }
 
     public function updateProfilePhoto(): void

@@ -211,6 +211,16 @@ function require_auth(): void
         redirect('login');
     }
 
+    $user = current_user();
+    if ($user && !empty($user['must_change_password'])) {
+        $route = route_name();
+        $allowedRoutes = ['profile/password/setup', 'profile/password', 'logout'];
+
+        if (!in_array($route, $allowedRoutes, true)) {
+            redirect('profile/password/setup');
+        }
+    }
+
     $_SESSION['last_activity_at'] = time();
 }
 
