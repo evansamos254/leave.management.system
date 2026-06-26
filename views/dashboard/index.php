@@ -24,7 +24,7 @@
             <strong><?= (int) $stats['users'] ?></strong>
         </article>
         <article class="stat-card">
-            <span>Staffs</span>
+            <span>Staff</span>
             <strong><?= (int) $stats['employees'] ?></strong>
         </article>
         <article class="stat-card">
@@ -42,93 +42,40 @@
     </section>
 <?php endif; ?>
 
-<div class="two-column">
-    <section class="panel">
-        <div class="panel-heading">
-            <div>
-                <p class="eyebrow">Account</p>
-                <h2>Profile Summary</h2>
-            </div>
-            <?php if ($employee): ?>
-                <a class="btn btn-primary" href="<?= e(url('leave/apply')) ?>">Apply Leave</a>
-            <?php endif; ?>
+<?php
+$isHrOffice = $user['role'] === 'hr' && (!$employee || empty($employee['department_name']));
+$directorateLabel = $isHrOffice ? 'HR Office' : ($employee['directorate_name'] ?? 'Not assigned');
+$departmentLabel = $isHrOffice ? 'Office-level account' : ($employee['department_name'] ?? 'Not assigned');
+?>
+
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <p class="eyebrow">Alerts</p>
+            <h2>Notifications</h2>
         </div>
-
-        <?php
-        $isHrOffice = $user['role'] === 'hr' && (!$employee || empty($employee['department_name']));
-        $directorateLabel = $isHrOffice ? 'HR Office' : ($employee['directorate_name'] ?? 'Not assigned');
-        $departmentLabel = $isHrOffice ? 'Office-level account' : ($employee['department_name'] ?? 'Not assigned');
-        ?>
-
-        <div class="profile-grid">
-            <div>
-                <span>Name</span>
-                <strong><?= e($user['full_name']) ?></strong>
-            </div>
-            <div>
-                <span>Email</span>
-                <strong><?= e($user['email']) ?></strong>
-            </div>
-            <div>
-                <span>National ID</span>
-                <strong><?= e($user['national_id'] ?? 'N/A') ?></strong>
-            </div>
-            <div>
-                <span>Gender</span>
-                <strong><?= e(gender_label($user['gender'] ?? null)) ?></strong>
-            </div>
-            <div>
-                <span>Role</span>
-                <strong><?= e(role_label($user['role'])) ?></strong>
-            </div>
-            <div>
-                <span>Department</span>
-                <strong><?= e($directorateLabel) ?></strong>
-            </div>
-            <div>
-                <span>Directorate</span>
-                <strong><?= e($departmentLabel) ?></strong>
-            </div>
-            <div>
-                <span>Payroll / ID number</span>
-                <strong><?= e($employee['staff_id'] ?? 'N/A') ?></strong>
-            </div>
-            <div>
-                <span>Designation</span>
-                <strong><?= e($employee['designation'] ?? 'N/A') ?></strong>
-            </div>
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="panel-heading">
-            <div>
-                <p class="eyebrow">Alerts</p>
-                <h2>Notifications</h2>
-            </div>
-            <?php if ($notifications): ?>
-                <form method="post" action="<?= e(url('notifications/read')) ?>">
-                    <?= csrf_field() ?>
-                    <button class="btn btn-ghost" type="submit">Mark Read</button>
-                </form>
-            <?php endif; ?>
-        </div>
-
-        <?php if (!$notifications): ?>
-            <p class="muted">No notifications yet.</p>
-        <?php else: ?>
-            <div class="notification-list">
-                <?php foreach ($notifications as $notification): ?>
-                    <a class="notification-item <?= (int) $notification['is_read'] === 0 ? 'unread' : '' ?>"
-                       href="<?= e($notification['link'] ?: url('dashboard')) ?>">
-                        <strong><?= e($notification['title']) ?></strong>
-                        <span><?= e($notification['message']) ?></span>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+        <?php if ($notifications): ?>
+            <form method="post" action="<?= e(url('notifications/read')) ?>">
+                <?= csrf_field() ?>
+                <button class="btn btn-ghost" type="submit">Mark Read</button>
+            </form>
         <?php endif; ?>
-    </section>
-</div>
+    </div>
+
+    <?php if (!$notifications): ?>
+        <p class="muted">No notifications yet.</p>
+    <?php else: ?>
+        <div class="notification-list">
+            <?php foreach ($notifications as $notification): ?>
+                <a class="notification-item <?= (int) $notification['is_read'] === 0 ? 'unread' : '' ?>"
+                   href="<?= e($notification['link'] ?: url('dashboard')) ?>">
+                    <strong><?= e($notification['title']) ?></strong>
+                    <span><?= e($notification['message']) ?></span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
 
 <?php if ($employee): ?>
     <section class="panel">
@@ -175,7 +122,7 @@
         <div class="panel-heading">
             <div>
                 <p class="eyebrow">Live Desk</p>
-                <h2>Staffs On-Leave Dashboard</h2>
+                <h2>Staff On-Leave Dashboard</h2>
             </div>
             <a class="btn btn-primary" href="<?= e(url('leave/calendar')) ?>">Open Calendar</a>
         </div>

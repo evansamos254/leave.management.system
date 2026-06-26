@@ -20,16 +20,36 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
     <link rel="stylesheet" href="<?= e(asset('css/styles.css')) ?>">
 </head>
 <body>
+
+<header class="masthead">
+    <div class="masthead-inner">
+        <img class="masthead-logo" src="<?= e(asset('images/logo.png')) ?>" alt="County Government of Busia">
+        <div class="masthead-titles">
+            <div class="county">County Government of Busia</div>
+            <div class="system">Staff Leave Management System</div>
+        </div>
+        <?php if ($authUser): ?>
+        <button class="menu-toggle masthead-menu-toggle" type="button" aria-label="Open dashboard menu" aria-controls="site-navigation" aria-expanded="false" data-menu-toggle>
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M4 6h16"></path>
+                <path d="M4 12h16"></path>
+                <path d="M4 18h16"></path>
+            </svg>
+        </button>
+        <?php endif; ?>
+    </div>
+</header>
+<hr class="tricolor">
+
 <div class="app-shell">
     <aside class="sidebar" id="site-navigation" data-mobile-sidebar>
         <div class="sidebar-header">
-            <a class="brand" href="<?= e(url('dashboard')) ?>">
-                <span class="brand-mark">BC</span>
-                <span>
-                    <strong>Busia County</strong>
-                    <small>Staff Online Leave</small>
-                </span>
-            </a>
+            <?php if ($authUser): ?>
+            <div class="sidebar-who">
+                <div class="who-name"><?= e($authUser['full_name']) ?></div>
+                <div class="who-role"><?= e(role_label($authUser['role'] ?? 'guest')) ?></div>
+            </div>
+            <?php endif; ?>
             <button class="sidebar-close" type="button" aria-label="Close dashboard menu" data-menu-close>
                 <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                     <path d="M18 6 6 18"></path>
@@ -40,38 +60,66 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
 
         <nav class="nav">
             <a class="<?= $activeRoute === 'dashboard' ? 'active' : '' ?>" href="<?= e(url('dashboard')) ?>">Dashboard</a>
+
             <?php if ($authUser && $authUser['employee_id']): ?>
-                <a class="<?= $activeRoute === 'leave/apply' ? 'active' : '' ?>" href="<?= e(url('leave/apply')) ?>">Apply Leave</a>
-                <a class="<?= $activeRoute === 'leave/history' ? 'active' : '' ?>" href="<?= e(url('leave/history')) ?>">My Leave History</a>
+            <details class="nav-section" <?= in_array($activeRoute, ['leave/apply', 'leave/history'], true) ? 'open' : '' ?>>
+                <summary class="nav-group">My Leave</summary>
+                <div class="nav-sub">
+                    <a class="<?= $activeRoute === 'leave/apply' ? 'active' : '' ?>" href="<?= e(url('leave/apply')) ?>">Apply for Leave</a>
+                    <a class="<?= $activeRoute === 'leave/history' ? 'active' : '' ?>" href="<?= e(url('leave/history')) ?>">My Leave History</a>
+                </div>
+            </details>
             <?php endif; ?>
-            <?php if ($authUser && in_array($authUser['role'], ['admin', 'supervisor'], true)): ?>
-                <a class="<?= $activeRoute === 'approvals' ? 'active' : '' ?>" href="<?= e(url('approvals')) ?>"><?= $authUser['role'] === 'admin' ? 'Approval Progress' : 'Approvals' ?></a>
-            <?php endif; ?>
+
             <?php if ($authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true)): ?>
-                <a class="<?= $activeRoute === 'leave/calendar' ? 'active' : '' ?>" href="<?= e(url('leave/calendar')) ?>">Leave Calendar</a>
-                <a class="<?= $activeRoute === 'reports' ? 'active' : '' ?>" href="<?= e(url('reports')) ?>">Reports</a>
+            <details class="nav-section" <?= in_array($activeRoute, ['approvals', 'leave/calendar'], true) ? 'open' : '' ?>>
+                <summary class="nav-group">Approvals</summary>
+                <div class="nav-sub">
+                    <?php if (in_array($authUser['role'], ['admin', 'supervisor'], true)): ?>
+                        <a class="<?= $activeRoute === 'approvals' ? 'active' : '' ?>" href="<?= e(url('approvals')) ?>"><?= $authUser['role'] === 'admin' ? 'Approval Progress' : 'Pending Approvals' ?></a>
+                    <?php endif; ?>
+                    <a class="<?= $activeRoute === 'leave/calendar' ? 'active' : '' ?>" href="<?= e(url('leave/calendar')) ?>">Leave Calendar</a>
+                </div>
+            </details>
             <?php endif; ?>
-            <?php if ($authUser && in_array($authUser['role'], ['admin', 'hr'], true)): ?>
-                <a class="<?= in_array($activeRoute, ['workers', 'workers/create'], true) ? 'active' : '' ?>" href="<?= e(url('workers')) ?>">Staff</a>
-            <?php endif; ?>
+
             <?php if ($authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true)): ?>
-                <a class="<?= $activeRoute === 'admin/users' ? 'active' : '' ?>" href="<?= e(url('admin/users')) ?>">User Managements</a>
-                <a class="<?= str_starts_with($activeRoute, 'admin/account-requests') ? 'active' : '' ?>" href="<?= e(url('admin/account-requests')) ?>">Account Requests</a>
-                <a class="<?= $activeRoute === 'admin/leave-requests' ? 'active' : '' ?>" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
-            <?php endif; ?>
-            <?php if ($authUser && in_array($authUser['role'], ['admin', 'hr'], true)): ?>
-                <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Activity</a>
-            <?php endif; ?>
-            <?php if ($authUser && $authUser['role'] === 'admin'): ?>
-                <a class="<?= $activeRoute === 'admin/leave-types' ? 'active' : '' ?>" href="<?= e(url('admin/leave-types')) ?>">Leave Types</a>
-                <a class="<?= $activeRoute === 'admin/holidays' ? 'active' : '' ?>" href="<?= e(url('admin/holidays')) ?>">Holidays</a>
+            <?php $adminOpen = (in_array($activeRoute, ['workers', 'workers/create', 'admin/users', 'admin/leave-requests', 'reports', 'admin/activity', 'admin/leave-types', 'admin/holidays'], true) || str_starts_with($activeRoute, 'admin/')) ? 'open' : ''; ?>
+            <details class="nav-section" <?= $adminOpen ?>>
+                <summary class="nav-group">Administration</summary>
+                <div class="nav-sub">
+                    <?php if (in_array($authUser['role'], ['admin', 'hr'], true)): ?>
+                        <a class="<?= in_array($activeRoute, ['workers', 'workers/create'], true) ? 'active' : '' ?>" href="<?= e(url('workers')) ?>">Staff</a>
+                    <?php endif; ?>
+                    <a class="<?= $activeRoute === 'admin/users' ? 'active' : '' ?>" href="<?= e(url('admin/users')) ?>">User Management</a>
+                    <a class="<?= str_starts_with($activeRoute, 'admin/account-requests') ? 'active' : '' ?>" href="<?= e(url('admin/account-requests')) ?>">Account Requests</a>
+                    <a class="<?= $activeRoute === 'admin/leave-requests' ? 'active' : '' ?>" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
+                    <a class="<?= $activeRoute === 'reports' ? 'active' : '' ?>" href="<?= e(url('reports')) ?>">Reports</a>
+                    <?php if (in_array($authUser['role'], ['admin', 'hr'], true)): ?>
+                        <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Activity</a>
+                    <?php endif; ?>
+                    <?php if ($authUser['role'] === 'admin'): ?>
+                        <a class="<?= $activeRoute === 'admin/leave-types' ? 'active' : '' ?>" href="<?= e(url('admin/leave-types')) ?>">Leave Types</a>
+                        <a class="<?= $activeRoute === 'admin/holidays' ? 'active' : '' ?>" href="<?= e(url('admin/holidays')) ?>">Holidays</a>
+                    <?php endif; ?>
+                </div>
+            </details>
             <?php endif; ?>
         </nav>
+
+        <?php if ($authUser): ?>
+        <div class="sidebar-logout">
+            <form method="post" action="<?= e(url('logout')) ?>">
+                <?= csrf_field() ?>
+                <button class="btn btn-ghost btn-block" type="submit">Logout</button>
+            </form>
+        </div>
+        <?php endif; ?>
     </aside>
     <button class="sidebar-overlay" type="button" aria-label="Close dashboard menu" data-menu-overlay hidden></button>
 
     <main class="main">
-        <header class="topbar">
+        <div class="topbar">
             <div class="topbar-title">
                 <button class="menu-toggle" type="button" aria-label="Open dashboard menu" aria-controls="site-navigation" aria-expanded="false" data-menu-toggle>
                     <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -165,15 +213,33 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                     <input type="hidden" name="redirect_to" value="<?= e($activeRoute) ?>">
                                     <label>
                                         <span>Current password</span>
-                                        <input type="password" name="current_password" required autocomplete="current-password">
+                                        <div class="password-wrap">
+                                            <input type="password" name="current_password" required autocomplete="current-password">
+                                            <button type="button" class="password-toggle" aria-label="Show password">
+                                                <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/></svg>
+                                            </button>
+                                        </div>
                                     </label>
                                     <label>
                                         <span>New password</span>
-                                        <input type="password" name="password" required minlength="6" autocomplete="new-password">
+                                        <div class="password-wrap">
+                                            <input type="password" name="password" required minlength="6" autocomplete="new-password">
+                                            <button type="button" class="password-toggle" aria-label="Show password">
+                                                <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/></svg>
+                                            </button>
+                                        </div>
                                     </label>
                                     <label>
                                         <span>Confirm password</span>
-                                        <input type="password" name="password_confirmation" required minlength="6" autocomplete="new-password">
+                                        <div class="password-wrap">
+                                            <input type="password" name="password_confirmation" required minlength="6" autocomplete="new-password">
+                                            <button type="button" class="password-toggle" aria-label="Show password">
+                                                <svg class="eye-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                <svg class="eye-closed" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/></svg>
+                                            </button>
+                                        </div>
                                     </label>
                                     <button class="btn btn-small btn-primary" type="submit">Change Password</button>
                                 </form>
@@ -200,7 +266,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                     <strong><?= e($authUser['phone'] ?? 'N/A') ?></strong>
                                 </div>
                                 <div>
-                                    <span>Payroll / ID number</span>
+                                    <span>Payroll / ID</span>
                                     <strong><?= e($authUser['staff_id'] ?? 'N/A') ?></strong>
                                 </div>
                                 <div>
@@ -224,7 +290,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                     </div>
                 </div>
             <?php endif; ?>
-        </header>
+        </div>
 
         <?php if ($message = flash('success')): ?>
             <div class="alert alert-success"><?= e($message) ?></div>
