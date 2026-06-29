@@ -2,6 +2,11 @@
 
 class Department
 {
+    public static function count(): int
+    {
+        return ((int) db()->query('SELECT COUNT(*) FROM directorates')->fetchColumn()) + 1;
+    }
+
     public static function all(): array
     {
         $stmt = db()->query(

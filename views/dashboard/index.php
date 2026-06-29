@@ -39,6 +39,10 @@
             <span>Directors</span>
             <strong><?= (int) $stats['directors'] ?></strong>
         </article>
+        <article class="stat-card">
+            <span>Departments</span>
+            <strong><?= (int) $stats['departments'] ?></strong>
+        </article>
     </section>
 <?php endif; ?>
 

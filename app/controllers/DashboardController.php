@@ -38,6 +38,7 @@ class DashboardController
                 'supervisors' => User::countByRole('supervisor', $user),
                 'hr' => User::countByRole('hr', $user),
                 'directors' => User::countByRole('director', $user),
+                'departments' => Department::count(),
             ],
         ]);
     }
