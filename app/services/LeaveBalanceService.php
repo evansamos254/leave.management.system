@@ -189,14 +189,17 @@ class LeaveBalanceService
 
         self::$legacyBalanceYearsMigrated = true;
 
-        $startMonth = financial_year_config()['start_month'];
+        $financialYear = financial_year_config();
+        $startMonth = $financialYear['start_month'];
+        $startDay = $financialYear['start_day'];
 
         $stmt = db()->prepare(
             'UPDATE leave_balances
              SET year = YEAR(created_at) - 1
              WHERE year = YEAR(created_at)
-               AND MONTH(created_at) < ?'
+               AND (MONTH(created_at) < ?
+                    OR (MONTH(created_at) = ? AND DAY(created_at) < ?))'
         );
-        $stmt->execute([$startMonth]);
+        $stmt->execute([$startMonth, $startMonth, $startDay]);
     }
 }

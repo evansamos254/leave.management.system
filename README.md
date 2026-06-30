@@ -2,7 +2,7 @@
 
 Plain PHP and MySQL implementation for employee leave requests, approval workflow, leave balances, reports, and admin management.
 
-Leave balances are tracked by financial year, using a July-to-June cycle by default.
+Leave balances are tracked by financial year, using a July-to-June cycle by default. If your fiscal year starts on a different month, adjust `config/app.php`.
 
 ## Default Admin
 

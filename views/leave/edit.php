@@ -133,7 +133,7 @@
     <section class="panel">
         <div class="panel-heading">
             <div>
-                <p class="eyebrow">Available</p>
+                <p class="eyebrow">Financial Year <?= e(financial_year_label()) ?></p>
                 <h2><?= !empty($editingAsSupervisor) ? 'Staff Balances' : 'Your Balances' ?></h2>
             </div>
         </div>

@@ -99,7 +99,7 @@ CREATE TABLE leave_balances (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   employee_id INT UNSIGNED NOT NULL,
   leave_type_id INT UNSIGNED NOT NULL,
-  year SMALLINT UNSIGNED NOT NULL,
+  year SMALLINT UNSIGNED NOT NULL, -- Financial year start year, e.g. 2025 for 2025/2026
   entitlement DECIMAL(6,2) NOT NULL DEFAULT 0.00,
   carried_forward DECIMAL(6,2) NOT NULL DEFAULT 0.00,
   used_days DECIMAL(6,2) NOT NULL DEFAULT 0.00,

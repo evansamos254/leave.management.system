@@ -522,7 +522,7 @@ class LeaveController
 
     private function financialYearForDate(string $date): int
     {
-        return validDate($date) ? financial_year_key($date) : financial_year_key();
+        return $this->validDate($date) ? financial_year_key($date) : financial_year_key();
     }
 
     private function balancesForGender(array $balances, ?string $gender): array
