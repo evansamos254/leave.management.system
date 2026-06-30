@@ -51,6 +51,7 @@
     <footer class="system-footer">
         <span>Copyright <?= e(date('Y')) ?> County Government of Busia. All rights reserved.</span>
     </footer>
+    <?php unset($_SESSION['old'], $_SESSION['errors']); ?>
     <script src="<?= e(asset('js/app.js')) ?>"></script>
 </body>
 </html>

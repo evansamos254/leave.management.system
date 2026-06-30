@@ -8,14 +8,17 @@ class DashboardController
 
         $user = current_user();
         $employee = $user['employee_id'] ? Employee::find((int) $user['employee_id']) : null;
-        $balances = $employee ? array_values(array_filter(
-            LeaveBalanceService::balancesForEmployee((int) $employee['id']),
-            fn (array $balance): bool => LeaveType::isEligibleForGender($balance, $user['gender'] ?? null)
-        )) : [];
         $counts = match ($user['role']) {
             'admin', 'hr', 'supervisor', 'director' => LeaveRequest::counts(null, $user),
             default => $employee ? LeaveRequest::counts((int) $employee['id']) : LeaveRequest::counts(),
         };
+        $leaveTypes = LeaveType::active();
+        $leaveTypeStats = [
+            'active' => count($leaveTypes),
+            'paid' => count(array_filter($leaveTypes, fn (array $type): bool => (int) ($type['is_paid'] ?? 0) === 1)),
+            'unpaid' => count(array_filter($leaveTypes, fn (array $type): bool => (int) ($type['is_paid'] ?? 0) !== 1)),
+            'tracked' => count(array_filter($leaveTypes, fn (array $type): bool => LeaveType::isBalanceTracked($type))),
+        ];
         $pendingApprovals = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true)
             ? LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null, $user)
             : [];
@@ -27,8 +30,9 @@ class DashboardController
             'title' => 'Dashboard',
             'user' => $user,
             'employee' => $employee,
-            'balances' => $balances,
             'counts' => $counts,
+            'leaveTypes' => $leaveTypes,
+            'leaveTypeStats' => $leaveTypeStats,
             'pendingApprovals' => $pendingApprovals,
             'liveOverview' => $liveOverview,
             'notifications' => NotificationService::recent((int) $user['id']),

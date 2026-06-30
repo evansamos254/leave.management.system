@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const startInput = leavePlanner.querySelector('[data-leave-start-date]');
         const daysDisplay = leavePlanner.querySelector('[data-leave-days-display]');
         const endInput = leavePlanner.querySelector('[data-leave-end-date]');
+        const noBackdate = leavePlanner.dataset.noBackdate === '1';
         const typeHint = leavePlanner.querySelector('[data-leave-type-hint]');
         const daysHint = leavePlanner.querySelector('[data-leave-days-hint]');
         const attachmentHint = leavePlanner.querySelector('[data-planner-attachment]');
@@ -132,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
             year: 'numeric',
         });
         const formatNumber = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayIso = formatIsoDate(today);
 
         function parseIsoDate(value) {
             if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -302,7 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const requestedDays = hasCompleteRange ? businessDaysBetween(startDate, endDate) : 0;
             const hasRequestedDays = requestedDays > 0;
 
-            if (endInput && startInput && startInput.value) {
+            if (noBackdate) {
+                if (startInput) {
+                    startInput.min = todayIso;
+                }
+
+                if (endInput) {
+                    endInput.min = startInput && startInput.value && startInput.value > todayIso
+                        ? startInput.value
+                        : todayIso;
+                }
+            } else if (endInput && startInput && startInput.value) {
                 endInput.min = startInput.value;
             }
 

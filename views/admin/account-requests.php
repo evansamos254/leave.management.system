@@ -36,7 +36,7 @@
                         </td>
                         <td>
                             <?= e($request['staff_id']) ?>
-                            <small><?= e($request['designation'] ?? '') ?></small>
+                            <small><?= e(designation_label($request['designation'] ?? null, $request['role'] ?? null)) ?></small>
                         </td>
                         <td><?= e($request['directorate_name'] ?? 'N/A') ?></td>
                         <td><?= e($request['department_name'] ?? 'N/A') ?></td>

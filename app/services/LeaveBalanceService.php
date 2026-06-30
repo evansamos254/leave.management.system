@@ -2,6 +2,8 @@
 
 class LeaveBalanceService
 {
+    private static bool $legacyBalanceYearsMigrated = false;
+
     public static function businessDays(string $startDate, string $endDate): int
     {
         $start = new DateTime($startDate);
@@ -92,7 +94,8 @@ class LeaveBalanceService
 
     public static function ensureBalances(int $employeeId, ?int $year = null): void
     {
-        $year = $year ?? (int) date('Y');
+        self::migrateLegacyBalanceYears();
+        $year = $year ?? financial_year_key();
         $types = LeaveType::active();
 
         foreach ($types as $type) {
@@ -110,7 +113,8 @@ class LeaveBalanceService
 
     public static function balancesForEmployee(int $employeeId, ?int $year = null): array
     {
-        $year = $year ?? (int) date('Y');
+        self::migrateLegacyBalanceYears();
+        $year = $year ?? financial_year_key();
         self::ensureBalances($employeeId, $year);
 
         $stmt = db()->prepare(
@@ -131,7 +135,8 @@ class LeaveBalanceService
 
     public static function hasEnoughBalance(int $employeeId, int $leaveTypeId, float $days, ?int $year = null): bool
     {
-        $year = $year ?? (int) date('Y');
+        self::migrateLegacyBalanceYears();
+        $year = $year ?? financial_year_key();
         $type = LeaveType::find($leaveTypeId);
         if (!$type || !LeaveType::isBalanceTracked($type)) {
             return true;
@@ -159,7 +164,8 @@ class LeaveBalanceService
 
     public static function deduct(int $employeeId, int $leaveTypeId, float $days, ?int $year = null): void
     {
-        $year = $year ?? (int) date('Y');
+        self::migrateLegacyBalanceYears();
+        $year = $year ?? financial_year_key();
         $type = LeaveType::find($leaveTypeId);
         if (!$type || !LeaveType::isBalanceTracked($type)) {
             return;
@@ -173,5 +179,24 @@ class LeaveBalanceService
              WHERE employee_id = ? AND leave_type_id = ? AND year = ?'
         );
         $stmt->execute([$days, $employeeId, $leaveTypeId, $year]);
+    }
+
+    private static function migrateLegacyBalanceYears(): void
+    {
+        if (self::$legacyBalanceYearsMigrated) {
+            return;
+        }
+
+        self::$legacyBalanceYearsMigrated = true;
+
+        $startMonth = financial_year_config()['start_month'];
+
+        $stmt = db()->prepare(
+            'UPDATE leave_balances
+             SET year = YEAR(created_at) - 1
+             WHERE year = YEAR(created_at)
+               AND MONTH(created_at) < ?'
+        );
+        $stmt->execute([$startMonth]);
     }
 }

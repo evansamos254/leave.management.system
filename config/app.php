@@ -20,6 +20,10 @@ return [
     'employment_document_dir' => dirname(__DIR__) . '/uploads/employment-documents',
     'employment_document_max_size' => 10 * 1024 * 1024,
     'employment_document_extensions' => ['pdf'],
+    'financial_year' => [
+        'start_month' => 7,
+        'start_day' => 1,
+    ],
     'security' => [
         'max_login_attempts' => 3,
         'login_lockout_minutes' => 15,

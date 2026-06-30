@@ -96,7 +96,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                     <a class="<?= $activeRoute === 'admin/leave-requests' ? 'active' : '' ?>" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
                     <a class="<?= $activeRoute === 'reports' ? 'active' : '' ?>" href="<?= e(url('reports')) ?>">Reports</a>
                     <?php if (in_array($authUser['role'], ['admin', 'hr'], true)): ?>
-                        <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Activity</a>
+                        <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Logs</a>
                     <?php endif; ?>
                     <?php if ($authUser['role'] === 'admin'): ?>
                         <a class="<?= $activeRoute === 'admin/leave-types' ? 'active' : '' ?>" href="<?= e(url('admin/leave-types')) ?>">Leave Types</a>
@@ -279,7 +279,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                 </div>
                                 <div>
                                     <span>Designation</span>
-                                    <strong><?= e($authUser['designation'] ?? 'N/A') ?></strong>
+                                    <strong><?= e(designation_label($authUser['designation'] ?? null, $authUser['role'] ?? null)) ?></strong>
                                 </div>
                             </div>
                             <form class="account-logout-form" method="post" action="<?= e(url('logout')) ?>">

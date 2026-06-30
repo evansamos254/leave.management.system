@@ -106,7 +106,7 @@ class AdminController
         require_role(['admin', 'hr']);
 
         view('admin/activity', [
-            'title' => 'System Activity',
+            'title' => 'System Logs',
             'logs' => AuditService::recent(),
         ]);
     }

@@ -108,6 +108,31 @@ class ExternalNotificationService
         );
     }
 
+    public static function leaveEndingSoon(array $request): bool
+    {
+        $name = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';
+        $email = $request['employee_email'] ?? $request['email'] ?? '';
+        $daysUntilEnd = self::daysUntilEnd($request['end_date'] ?? null);
+        $subject = $daysUntilEnd <= 0
+            ? 'Your leave ends today'
+            : ($daysUntilEnd === 1 ? 'Your leave ends tomorrow' : 'Your leave ends soon');
+        $message = 'Hello ' . $name . ',' . PHP_EOL . PHP_EOL
+            . 'This is a friendly reminder that your approved ' . ($request['leave_type_name'] ?? 'leave')
+            . ' is ending soon.' . PHP_EOL
+            . 'Leave end date: ' . format_date($request['end_date'] ?? null) . PHP_EOL
+            . 'Report-back date: ' . format_date(LeaveBalanceService::returnDateAfter((string) ($request['end_date'] ?? date('Y-m-d')))) . PHP_EOL . PHP_EOL
+            . self::leaveEndingWish($request) . PHP_EOL . PHP_EOL
+            . 'Please make the necessary arrangements to resume duty on time.' . PHP_EOL . PHP_EOL
+            . self::leaveReminderSummary($request);
+
+        return self::sendEmail(
+            $email,
+            $subject,
+            $message,
+            'Leave ending reminder sent.'
+        );
+    }
+
     public static function leaveApprovalWish(array $request): string
     {
         $leaveType = strtolower((string) ($request['leave_type_name'] ?? ''));
@@ -137,6 +162,37 @@ class ExternalNotificationService
         }
 
         return 'We wish you well during your approved leave period.';
+    }
+
+    public static function leaveEndingWish(array $request): string
+    {
+        $leaveType = strtolower((string) ($request['leave_type_name'] ?? ''));
+
+        if (str_contains($leaveType, 'sick')) {
+            return 'We wish you continued recovery and good health as you prepare to resume duty.';
+        }
+
+        if (str_contains($leaveType, 'maternity')) {
+            return 'We wish you and your baby continued health and a smooth return to work.';
+        }
+
+        if (str_contains($leaveType, 'paternity')) {
+            return 'We wish you and your family well as you prepare to return to duty.';
+        }
+
+        if (str_contains($leaveType, 'compassionate')) {
+            return 'We wish you comfort and strength as you prepare to resume duty.';
+        }
+
+        if (str_contains($leaveType, 'study')) {
+            return 'We wish you success as you complete your studies and return to work.';
+        }
+
+        if (str_contains($leaveType, 'annual')) {
+            return 'We hope your leave has been refreshing and that you return with renewed energy.';
+        }
+
+        return 'We wish you a smooth and safe return to duty.';
     }
 
     public static function leaveRequestRejected(array $request, string $stageRole, ?string $reason = null): bool
@@ -174,6 +230,29 @@ class ExternalNotificationService
         return 'Leave type: ' . ($request['leave_type_name'] ?? 'N/A') . PHP_EOL
             . 'Dates: ' . format_date($request['start_date'] ?? null) . ' to ' . format_date($request['end_date'] ?? null) . PHP_EOL
             . 'Working days: ' . format_days($request['days_requested'] ?? null, 'N/A');
+    }
+
+    private static function leaveReminderSummary(array $request): string
+    {
+        return 'Leave type: ' . ($request['leave_type_name'] ?? 'N/A') . PHP_EOL
+            . 'Dates: ' . format_date($request['start_date'] ?? null) . ' to ' . format_date($request['end_date'] ?? null) . PHP_EOL
+            . 'Working days: ' . format_days($request['days_requested'] ?? null, 'N/A') . PHP_EOL
+            . 'Report-back date: ' . format_date(LeaveBalanceService::returnDateAfter((string) ($request['end_date'] ?? date('Y-m-d'))));
+    }
+
+    private static function daysUntilEnd(?string $endDate): int
+    {
+        if ($endDate === null || trim($endDate) === '') {
+            return 0;
+        }
+
+        $parsed = DateTime::createFromFormat('Y-m-d', $endDate);
+        if (!$parsed || $parsed->format('Y-m-d') !== $endDate) {
+            return 0;
+        }
+
+        $today = new DateTime('today');
+        return (int) $today->diff($parsed)->format('%r%a');
     }
 
     private static function sendToContact(

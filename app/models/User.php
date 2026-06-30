@@ -242,7 +242,7 @@ class User
         return $stmt->fetchAll();
     }
 
-    public static function countByRole(?string $role = null, ?array $viewer = null): int
+    public static function countByRole(?string $role = null, ?array $viewer = null, ?string $status = 'active'): int
     {
         $params = [];
         $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
@@ -251,6 +251,11 @@ class User
         if ($role !== null) {
             $where .= ' AND u.role = ?';
             $params[] = $role;
+        }
+
+        if ($status !== null && $status !== '') {
+            $where .= ' AND u.status = ?';
+            $params[] = $status;
         }
 
         $stmt = db()->prepare(

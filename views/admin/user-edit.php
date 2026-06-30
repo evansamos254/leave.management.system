@@ -97,7 +97,7 @@
         </label>
         <label>
             <span>Designation</span>
-            <input type="text" name="designation" value="<?= e(old('designation', $account['designation'] ?? '')) ?>" required>
+            <input type="text" name="designation" value="<?= e(old('designation', designation_form_value($account['designation'] ?? null, $account['role'] ?? null))) ?>" required>
         </label>
         <label>
             <span>Employment date</span>

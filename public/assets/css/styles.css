@@ -892,6 +892,13 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(20,70,123,.12);
 }
 
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+    border-color: var(--bad);
+    box-shadow: 0 0 0 3px rgba(185, 42, 44, .10);
+}
+
 input:disabled {
     background: var(--bg);
     color: var(--muted);
@@ -989,6 +996,13 @@ input[readonly] {
 
 .alert-success { background: var(--ok-bg); border-color: #BFE0CC; color: var(--green-deep); }
 .alert-error   { background: var(--bad-bg); border-color: #E6C3BE; color: var(--bad); }
+
+.field-error {
+    color: var(--bad);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
 
 
 /* ── Leave planner ────────────────────── */

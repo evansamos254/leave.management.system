@@ -13,7 +13,7 @@
 
         <script type="application/json" id="leave-planner-data"><?= json_encode($leavePlanner ?? ['leaveTypes' => [], 'holidays' => []], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?></script>
 
-        <form class="form" method="post" action="<?= e(url('leave/apply')) ?>" enctype="multipart/form-data" data-leave-planner>
+        <form class="form" method="post" action="<?= e(url('leave/apply')) ?>" enctype="multipart/form-data" data-leave-planner data-no-backdate="1">
             <?= csrf_field() ?>
             <div class="grid-form">
                 <label>
@@ -34,27 +34,31 @@
                 </label>
                 <label>
                     <span>Designation</span>
-                    <input type="text" value="<?= e($employee['designation']) ?>" disabled>
+                    <input type="text" value="<?= e(designation_label($employee['designation'] ?? null, $user['role'] ?? null)) ?>" disabled>
                 </label>
                 <label>
                     <span>Contact Number</span>
-                    <input type="text" name="contact_number" value="<?= e($user['phone'] ?? '') ?>">
+                    <input type="text" name="contact_number" value="<?= e(old('contact_number', $user['phone'] ?? '')) ?>" class="<?= has_field_error('contact_number') ? 'is-invalid' : '' ?>">
+                    <?php if ($error = field_error('contact_number')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                 </label>
                 <label>
                     <span>Leave Type</span>
-                    <select name="leave_type_id" required data-leave-type-select>
+                    <select name="leave_type_id" class="<?= has_field_error('leave_type_id') ? 'is-invalid' : '' ?>" required data-leave-type-select>
                         <option value="">Select leave type</option>
                         <?php foreach ($leaveTypes as $type): ?>
-                            <option value="<?= (int) $type['id'] ?>">
+                            <option value="<?= (int) $type['id'] ?>" <?= (int) old('leave_type_id', '0') === (int) $type['id'] ? 'selected' : '' ?>>
                                 <?= e($type['name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if ($error = field_error('leave_type_id')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     <small data-leave-type-hint>Select a leave type to see its rules.</small>
                 </label>
                 <label>
                     <span>Start Date</span>
-                    <input id="start_date" type="date" name="start_date" required data-leave-start-date>
+                    <input id="start_date" type="date" name="start_date" value="<?= e(old('start_date')) ?>" min="<?= e(date('Y-m-d')) ?>" class="<?= has_field_error('start_date') ? 'is-invalid' : '' ?>" required data-leave-start-date>
+                    <?php if ($error = field_error('start_date')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                    <small>Choose today or a future date only.</small>
                 </label>
                 <label>
                     <span>Leave Days</span>
@@ -63,7 +67,8 @@
                 </label>
                 <label>
                     <span>End Date</span>
-                    <input id="end_date" type="date" name="end_date" required data-leave-end-date>
+                    <input id="end_date" type="date" name="end_date" value="<?= e(old('end_date')) ?>" min="<?= e(date('Y-m-d')) ?>" class="<?= has_field_error('end_date') ? 'is-invalid' : '' ?>" required data-leave-end-date>
+                    <?php if ($error = field_error('end_date')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     <small>Select the last day of leave.</small>
                 </label>
                 <div class="span-2 leave-planner-box">
@@ -96,16 +101,19 @@
                 </div>
                 <label>
                     <span>Supporting Attachment</span>
-                    <input type="file" name="attachment" accept=".pdf,application/pdf">
+                    <input type="file" name="attachment" class="<?= has_field_error('attachment') ? 'is-invalid' : '' ?>" accept=".pdf,application/pdf">
+                    <?php if ($error = field_error('attachment')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     <small data-planner-attachment>PDF attachment guidance will appear after selecting a leave type.</small>
                 </label>
                 <label class="span-2">
                     <span>Reason / Comments</span>
-                    <textarea name="reason" rows="4" placeholder="Add a short reason for the request"></textarea>
+                    <textarea name="reason" rows="4" class="<?= has_field_error('reason') ? 'is-invalid' : '' ?>" placeholder="Add a short reason for the request"><?= e(old('reason')) ?></textarea>
+                    <?php if ($error = field_error('reason')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                 </label>
                 <label class="span-2">
                     <span>Handover notes</span>
-                    <textarea name="handover_notes" rows="4" placeholder="State who will handle your duties and any important handover information"></textarea>
+                    <textarea name="handover_notes" rows="4" class="<?= has_field_error('handover_notes') ? 'is-invalid' : '' ?>" placeholder="State who will handle your duties and any important handover information"><?= e(old('handover_notes')) ?></textarea>
+                    <?php if ($error = field_error('handover_notes')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     <small>Include the officer covering your duties, key tasks, and urgent contacts if applicable.</small>
                 </label>
             </div>

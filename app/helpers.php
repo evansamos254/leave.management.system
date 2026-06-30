@@ -100,9 +100,37 @@ function set_flash(string $key, string $message): void
     $_SESSION['flash'][$key] = $message;
 }
 
+function remember_form_state(array $old = [], array $errors = []): void
+{
+    $_SESSION['old'] = $old;
+    $_SESSION['errors'] = $errors;
+}
+
 function old(string $key, string $default = ''): string
 {
     return (string) ($_SESSION['old'][$key] ?? $default);
+}
+
+function field_error(string $key): ?string
+{
+    $errors = $_SESSION['errors'][$key] ?? null;
+
+    if ($errors === null) {
+        return null;
+    }
+
+    if (is_array($errors)) {
+        $errors = implode(' ', array_filter(array_map(static fn ($value) => trim((string) $value), $errors)));
+    }
+
+    $errors = trim((string) $errors);
+
+    return $errors === '' ? null : $errors;
+}
+
+function has_field_error(string $key): bool
+{
+    return field_error($key) !== null;
 }
 
 function build_full_name(?string $firstName, ?string $lastName): string
@@ -281,6 +309,79 @@ function gender_label(?string $gender): string
     return gender_options()[$gender ?? ''] ?? 'Not set';
 }
 
+function designation_label(?string $designation, ?string $role = null): string
+{
+    if ($role === 'admin') {
+        return 'Admin';
+    }
+
+    $designation = trim((string) $designation);
+    if ($designation === '') {
+        return 'N/A';
+    }
+
+    if (strcasecmp($designation, 'admin/director') === 0) {
+        return 'Admin';
+    }
+
+    return $designation;
+}
+
+function designation_form_value(?string $designation, ?string $role = null): string
+{
+    if ($role === 'admin') {
+        return 'Admin';
+    }
+
+    $designation = trim((string) $designation);
+    if ($designation === '') {
+        return '';
+    }
+
+    if (strcasecmp($designation, 'admin/director') === 0) {
+        return 'Admin';
+    }
+
+    return $designation;
+}
+
+function financial_year_config(): array
+{
+    $config = app_config('financial_year', []);
+
+    return [
+        'start_month' => max(1, min(12, (int) ($config['start_month'] ?? 7))),
+        'start_day' => max(1, min(31, (int) ($config['start_day'] ?? 1))),
+    ];
+}
+
+function financial_year_key(?string $date = null): int
+{
+    $date = $date && trim($date) !== '' ? $date : date('Y-m-d');
+    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+        $parsed = new DateTime($date);
+    }
+
+    $config = financial_year_config();
+    $year = (int) $parsed->format('Y');
+    $month = (int) $parsed->format('n');
+    $day = (int) $parsed->format('j');
+
+    if ($month < $config['start_month'] || ($month === $config['start_month'] && $day < $config['start_day'])) {
+        return $year - 1;
+    }
+
+    return $year;
+}
+
+function financial_year_label(?string $date = null): string
+{
+    $startYear = financial_year_key($date);
+
+    return $startYear . '/' . ($startYear + 1);
+}
+
 function leave_gender_options(): array
 {
     return [
@@ -308,6 +409,16 @@ function is_valid_past_or_today_date(string $date): bool
     }
 
     return $parsed <= new DateTime('today');
+}
+
+function is_valid_today_or_future_date(string $date): bool
+{
+    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+        return false;
+    }
+
+    return $parsed >= new DateTime('today');
 }
 
 function uploaded_file_is_pdf(array $file): bool

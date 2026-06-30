@@ -62,30 +62,48 @@ class LeaveController
         $contactNumber = trim($_POST['contact_number'] ?? '');
         $reason = trim($_POST['reason'] ?? '');
         $handoverNotes = trim($_POST['handover_notes'] ?? '');
+        $formState = [
+            'leave_type_id' => (string) $leaveTypeId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'contact_number' => $contactNumber,
+            'reason' => $reason,
+            'handover_notes' => $handoverNotes,
+        ];
 
         $errors = [];
 
         if (!$leaveType || (int) $leaveType['is_active'] !== 1) {
-            $errors[] = 'Please select a valid leave type.';
+            $errors['leave_type_id'] = 'Please select a valid leave type.';
         } elseif (!LeaveType::isEligibleForGender($leaveType, $user['gender'] ?? null)) {
-            $errors[] = 'This leave type is not available for your gender profile.';
+            $errors['leave_type_id'] = 'This leave type is not available for your gender profile.';
         }
 
-        if (!$this->validDate($startDate) || !$this->validDate($endDate)) {
-            $errors[] = 'Please provide valid start and end dates.';
+        if (!$this->validDate($startDate)) {
+            $errors['start_date'] = 'Please provide a valid start date.';
+        } elseif (!is_valid_today_or_future_date($startDate)) {
+            $errors['start_date'] = 'Start date cannot be in the past.';
+        }
+
+        if (!$this->validDate($endDate)) {
+            $errors['end_date'] = 'Please provide a valid end date.';
+        } elseif (!is_valid_today_or_future_date($endDate)) {
+            $errors['end_date'] = 'End date cannot be in the past.';
         }
 
         if ($this->validDate($startDate) && $this->validDate($endDate) && strtotime($endDate) < strtotime($startDate)) {
-            $errors[] = 'End date cannot be earlier than start date.';
+            $errors['end_date'] = 'End date cannot be earlier than start date.';
         }
 
         $days = $errors ? 0 : LeaveBalanceService::businessDays($startDate, $endDate);
         if ($days < 1) {
-            $errors[] = 'The selected dates do not include a working day.';
+            $errors['end_date'] = 'The selected dates do not include a working day.';
         }
 
-        if (!$errors && !LeaveBalanceService::hasEnoughBalance((int) $employee['id'], $leaveTypeId, $days)) {
-            $errors[] = 'Insufficient leave balance for the selected leave type.';
+        $balanceYear = $this->financialYearForDate($startDate);
+
+        if (!$errors && !LeaveBalanceService::hasEnoughBalance((int) $employee['id'], $leaveTypeId, $days, $balanceYear)) {
+            $errors['end_date'] = 'Insufficient leave balance for the selected leave type.';
         }
 
         $requiresAttachment = $leaveType
@@ -98,7 +116,8 @@ class LeaveController
         }
 
         if ($errors) {
-            set_flash('error', implode(' ', $errors));
+            remember_form_state($formState, $errors);
+            set_flash('error', 'Please correct the highlighted fields below.');
             redirect('leave/apply');
         }
 
@@ -124,6 +143,7 @@ class LeaveController
         } catch (Throwable $throwable) {
             db()->rollBack();
             app_log($throwable);
+            remember_form_state($formState, $errors);
             set_flash('error', 'Leave request could not be submitted.');
             redirect('leave/apply');
         }
@@ -204,30 +224,44 @@ class LeaveController
         $contactNumber = trim($_POST['contact_number'] ?? '');
         $reason = trim($_POST['reason'] ?? '');
         $handoverNotes = trim($_POST['handover_notes'] ?? '');
+        $formState = [
+            'leave_type_id' => (string) $leaveTypeId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'contact_number' => $contactNumber,
+            'reason' => $reason,
+            'handover_notes' => $handoverNotes,
+        ];
 
         $errors = [];
 
         if (!$leaveType || (int) $leaveType['is_active'] !== 1) {
-            $errors[] = 'Please select a valid leave type.';
+            $errors['leave_type_id'] = 'Please select a valid leave type.';
         } elseif (!LeaveType::isEligibleForGender($leaveType, $requestGender)) {
-            $errors[] = 'This leave type is not available for the staff gender profile.';
+            $errors['leave_type_id'] = 'This leave type is not available for the staff gender profile.';
         }
 
-        if (!$this->validDate($startDate) || !$this->validDate($endDate)) {
-            $errors[] = 'Please provide valid start and end dates.';
+        if (!$this->validDate($startDate)) {
+            $errors['start_date'] = 'Please provide a valid start date.';
+        }
+
+        if (!$this->validDate($endDate)) {
+            $errors['end_date'] = 'Please provide a valid end date.';
         }
 
         if ($this->validDate($startDate) && $this->validDate($endDate) && strtotime($endDate) < strtotime($startDate)) {
-            $errors[] = 'End date cannot be earlier than start date.';
+            $errors['end_date'] = 'End date cannot be earlier than start date.';
         }
 
         $days = $errors ? 0 : LeaveBalanceService::businessDays($startDate, $endDate);
         if ($days < 1) {
-            $errors[] = 'The selected dates do not include a working day.';
+            $errors['end_date'] = 'The selected dates do not include a working day.';
         }
 
-        if (!$errors && !LeaveBalanceService::hasEnoughBalance((int) $request['employee_id'], $leaveTypeId, $days)) {
-            $errors[] = 'Insufficient leave balance for the selected leave type.';
+        $balanceYear = $this->financialYearForDate($startDate);
+
+        if (!$errors && !LeaveBalanceService::hasEnoughBalance((int) $request['employee_id'], $leaveTypeId, $days, $balanceYear)) {
+            $errors['end_date'] = 'Insufficient leave balance for the selected leave type.';
         }
 
         $requiresAttachment = $leaveType
@@ -240,7 +274,8 @@ class LeaveController
         }
 
         if ($errors) {
-            set_flash('error', implode(' ', $errors));
+            remember_form_state($formState, $errors);
+            set_flash('error', 'Please correct the highlighted fields below.');
             $this->redirectToLeaveEdit($id);
         }
 
@@ -263,6 +298,7 @@ class LeaveController
         } catch (Throwable $throwable) {
             db()->rollBack();
             app_log($throwable);
+            remember_form_state($formState, $errors);
             set_flash('error', 'Leave request could not be updated.');
             $this->redirectToLeaveEdit($id);
         }
@@ -306,11 +342,17 @@ class LeaveController
 
         $user = current_user();
         $employee = Employee::findByUserId((int) $user['id']);
+        $balances = $employee ? array_values(array_filter(
+            LeaveBalanceService::balancesForEmployee((int) $employee['id']),
+            fn (array $balance): bool => LeaveType::isEligibleForGender($balance, $user['gender'] ?? null)
+        )) : [];
 
         view('leave/history', [
             'title' => 'Leave History',
             'employee' => $employee,
             'requests' => $employee ? LeaveRequest::forEmployee((int) $employee['id']) : [],
+            'balances' => $balances,
+            'financialYearLabel' => financial_year_label(),
         ]);
     }
 
@@ -478,6 +520,11 @@ class LeaveController
         ];
     }
 
+    private function financialYearForDate(string $date): int
+    {
+        return validDate($date) ? financial_year_key($date) : financial_year_key();
+    }
+
     private function balancesForGender(array $balances, ?string $gender): array
     {
         return array_values(array_filter(
@@ -492,25 +539,25 @@ class LeaveController
 
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
             if ($required && !$existingAttachment) {
-                $errors[] = 'Supporting attachment is required for this leave request.';
+                $errors['attachment'] = 'Supporting attachment is required for this leave request.';
             }
 
             return $existingAttachment;
         }
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'Attachment upload failed.';
+            $errors['attachment'] = 'Attachment upload failed.';
             return null;
         }
 
         if ($file['size'] > app_config('max_upload_size')) {
-            $errors[] = 'Attachment must not exceed 5 MB.';
+            $errors['attachment'] = 'Attachment must not exceed 5 MB.';
             return null;
         }
 
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($extension, app_config('allowed_upload_extensions'), true) || !uploaded_file_is_pdf($file)) {
-            $errors[] = 'Supporting attachment must be a PDF file.';
+            $errors['attachment'] = 'Supporting attachment must be a PDF file.';
             return null;
         }
 
@@ -522,7 +569,7 @@ class LeaveController
         }
 
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
-            $errors[] = 'Could not save the attachment.';
+            $errors['attachment'] = 'Could not save the attachment.';
             return null;
         }
 

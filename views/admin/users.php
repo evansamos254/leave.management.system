@@ -42,7 +42,7 @@
                     </td>
                     <td>
                         <?= e($account['staff_id'] ?? 'N/A') ?>
-                        <small><?= e($account['designation'] ?? '') ?></small>
+                        <small><?= e(designation_label($account['designation'] ?? null, $account['role'] ?? null)) ?></small>
                     </td>
                     <td><?= e($directorateLabel) ?></td>
                     <td><?= e($departmentLabel) ?></td>

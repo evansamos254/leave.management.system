@@ -4,5 +4,6 @@
     </main>
 </div>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<?php unset($_SESSION['old'], $_SESSION['errors']); ?>
 </body>
 </html>

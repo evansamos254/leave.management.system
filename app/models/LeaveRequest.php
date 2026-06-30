@@ -326,6 +326,37 @@ class LeaveRequest
         return $stmt->fetchAll();
     }
 
+    public static function endingSoonReminders(int $windowDays = 1): array
+    {
+        $windowDays = max(0, $windowDays);
+        $boundaryDate = date('Y-m-d', strtotime('+' . $windowDays . ' day'));
+
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    e.user_id AS employee_user_id,
+                    e.staff_id, e.department_id, e.designation, e.supervisor_id,
+                    u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
+                    d.directorate_id, d.name AS department_name,
+                    dir.name AS directorate_name,
+                    DATEDIFF(lr.end_date, CURDATE()) AS days_until_end
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.status = 'approved'
+               AND lr.resumed_at IS NULL
+               AND lr.start_date <= CURDATE()
+               AND lr.end_date BETWEEN CURDATE() AND ?
+               AND lr.end_reminder_sent_at IS NULL
+             ORDER BY lr.end_date ASC, u.full_name ASC"
+        );
+        $stmt->execute([$boundaryDate]);
+
+        return $stmt->fetchAll();
+    }
+
     public static function pendingStageCounts(string $role = 'admin', ?int $employeeId = null): array
     {
         $counts = [
@@ -381,6 +412,16 @@ class LeaveRequest
              WHERE id = ? AND status = 'approved' AND resumed_at IS NULL"
         );
         $stmt->execute([$userId, $notes, $id]);
+    }
+
+    public static function markEndReminderSent(int $id): void
+    {
+        $stmt = db()->prepare(
+            'UPDATE leave_requests
+             SET end_reminder_sent_at = NOW()
+             WHERE id = ?'
+        );
+        $stmt->execute([$id]);
     }
 
     public static function counts(?int $employeeId = null, ?array $viewer = null): array

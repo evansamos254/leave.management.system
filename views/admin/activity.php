@@ -2,7 +2,7 @@
     <div class="panel-heading">
         <div>
             <p class="eyebrow">System Monitor</p>
-            <h2>System Activity</h2>
+            <h2>System Logs</h2>
         </div>
     </div>
 
@@ -20,7 +20,7 @@
             <tbody>
             <?php if (!$logs): ?>
                 <tr>
-                    <td colspan="5" class="muted">No activity has been recorded yet.</td>
+                    <td colspan="5" class="muted">No logs have been recorded yet.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($logs as $log): ?>

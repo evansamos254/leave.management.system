@@ -2,6 +2,8 @@
 
 Plain PHP and MySQL implementation for employee leave requests, approval workflow, leave balances, reports, and admin management.
 
+Leave balances are tracked by financial year, using a July-to-June cycle by default.
+
 ## Default Admin
 
 Email: `admin@leavesystem.local`
@@ -33,6 +35,25 @@ return [
 SMS needs a provider gateway; add the gateway details in `config/app.php` under `notifications.sms`.
 
 All outbound attempts are recorded in `storage/logs/outbound-notifications.log`. Make sure the live server has a writable `storage/logs` directory.
+
+## Leave End Reminders
+
+Approved leave requests can be checked automatically and emailed when the leave is about to end.
+
+Run the reminder job from cron once a day:
+
+```bash
+php scripts/leave-end-reminders.php
+```
+
+Example cron entry:
+
+```bash
+0 7 * * * /usr/bin/php /path/to/leave-system/scripts/leave-end-reminders.php >> /path/to/leave-system/storage/logs/leave-reminders.log 2>&1
+```
+
+The job checks approved leave requests ending today or tomorrow, sends the reminder email, and marks each request so it is not emailed twice.
+On first run, it adds the reminder marker column automatically if it is missing.
 
 ## Setup
 

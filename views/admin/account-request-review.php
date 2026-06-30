@@ -39,7 +39,7 @@
             </div>
             <div>
                 <span>Designation</span>
-                <strong><?= e($request['designation'] ?? 'N/A') ?></strong>
+                <strong><?= e(designation_label($request['designation'] ?? null, $request['role'] ?? null)) ?></strong>
             </div>
             <div>
                 <span>Department</span>

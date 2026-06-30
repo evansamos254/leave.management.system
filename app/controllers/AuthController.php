@@ -160,8 +160,8 @@ class AuthController
         $documentPath = $this->handleEmploymentDocument($errors);
 
         if ($errors) {
-            $_SESSION['old'] = $data;
-            set_flash('error', implode(' ', $errors));
+            remember_form_state(array_diff_key($data, ['password' => true, 'password_confirmation' => true]), $errors);
+            set_flash('error', 'Please correct the highlighted fields below.');
             redirect('register');
         }
 
@@ -201,7 +201,7 @@ class AuthController
                 }
             }
             app_log($throwable);
-            $_SESSION['old'] = $data;
+            remember_form_state(array_diff_key($data, ['password' => true, 'password_confirmation' => true]), $errors);
             set_flash('error', 'Account request could not be submitted. Please try again.');
             redirect('register');
         }
@@ -241,61 +241,61 @@ class AuthController
         $errors = [];
 
         if ($data['first_name'] === '') {
-            $errors[] = 'First name is required.';
+            $errors['first_name'] = 'First name is required.';
         }
 
         if ($data['last_name'] === '') {
-            $errors[] = 'Last name is required.';
+            $errors['last_name'] = 'Last name is required.';
         }
 
         if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'A valid email address is required.';
+            $errors['email'] = 'A valid email address is required.';
         } elseif (User::findByEmail($data['email'])) {
-            $errors[] = 'Email address is already registered.';
+            $errors['email'] = 'Email address is already registered.';
         }
 
         if ($data['national_id'] === '') {
-            $errors[] = 'National ID is required.';
+            $errors['national_id'] = 'National ID is required.';
         } elseif (!preg_match('/^[A-Z0-9-]{4,50}$/', $data['national_id'])) {
-            $errors[] = 'National ID may only contain letters, numbers, and hyphens.';
+            $errors['national_id'] = 'National ID may only contain letters, numbers, and hyphens.';
         } elseif (User::findByNationalId($data['national_id'])) {
-            $errors[] = 'National ID is already registered.';
+            $errors['national_id'] = 'National ID is already registered.';
         }
 
         if ($data['gender'] === null) {
-            $errors[] = 'Gender is required.';
+            $errors['gender'] = 'Gender is required.';
         }
 
         if ($data['staff_id'] === '') {
-            $errors[] = 'Payroll or ID number is required.';
+            $errors['staff_id'] = 'Payroll or ID number is required.';
         } elseif (Employee::findByStaffId($data['staff_id'])) {
-            $errors[] = 'Payroll or ID number is already registered.';
+            $errors['staff_id'] = 'Payroll or ID number is already registered.';
         }
 
         if ($data['directorate_id'] < 1 || !Directorate::find($data['directorate_id'])) {
-            $errors[] = 'Department is required.';
+            $errors['directorate_id'] = 'Department is required.';
         }
 
         if ($data['department_id'] < 1 || !Department::find($data['department_id'])) {
-            $errors[] = 'Directorate is required.';
+            $errors['department_id'] = 'Directorate is required.';
         } elseif ($data['directorate_id'] > 0 && !Department::belongsToDirectorate($data['department_id'], $data['directorate_id'])) {
-            $errors[] = 'Selected directorate does not belong to the selected department.';
+            $errors['department_id'] = 'Selected directorate does not belong to the selected department.';
         }
 
         if ($data['designation'] === '') {
-            $errors[] = 'Designation is required.';
+            $errors['designation'] = 'Designation is required.';
         }
 
         if (strlen($data['password']) < 6) {
-            $errors[] = 'Password must be at least 6 characters.';
+            $errors['password'] = 'Password must be at least 6 characters.';
         }
 
         if ($data['password'] !== $data['password_confirmation']) {
-            $errors[] = 'Password confirmation does not match.';
+            $errors['password_confirmation'] = 'Password confirmation does not match.';
         }
 
         if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {
-            $errors[] = 'Employment date is invalid or cannot be in the future.';
+            $errors['employment_date'] = 'Employment date is invalid or cannot be in the future.';
         }
 
         return $errors;
@@ -341,23 +341,23 @@ class AuthController
         $file = $_FILES['employment_document'] ?? null;
 
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-            $errors[] = 'Supporting document proving county employment is required.';
+            $errors['employment_document'] = 'Supporting document proving county employment is required.';
             return null;
         }
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'Supporting document upload failed.';
+            $errors['employment_document'] = 'Supporting document upload failed.';
             return null;
         }
 
         if ($file['size'] > app_config('employment_document_max_size')) {
-            $errors[] = 'Supporting document must not exceed 10 MB.';
+            $errors['employment_document'] = 'Supporting document must not exceed 10 MB.';
             return null;
         }
 
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($extension, app_config('employment_document_extensions'), true) || !uploaded_file_is_pdf($file)) {
-            $errors[] = 'Supporting document must be a PDF file.';
+            $errors['employment_document'] = 'Supporting document must be a PDF file.';
             return null;
         }
 
@@ -374,7 +374,7 @@ class AuthController
         $destination = $uploadDir . '/' . $filename;
 
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
-            $errors[] = 'Could not save the supporting document.';
+            $errors['employment_document'] = 'Could not save the supporting document.';
             return null;
         }
 

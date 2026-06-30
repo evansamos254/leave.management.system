@@ -1,12 +1,50 @@
+<?php if ($employee): ?>
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">Financial Year <?= e($financialYearLabel ?? financial_year_label()) ?></p>
+                <h2>Leave Balances</h2>
+            </div>
+            <a class="btn btn-primary" href="<?= e(url('leave/apply')) ?>">New Request</a>
+        </div>
+
+        <?php if (!$balances): ?>
+            <p class="muted">No tracked leave balances are available for this profile.</p>
+        <?php else: ?>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Leave Type</th>
+                        <th>Entitlement</th>
+                        <th>Carried Forward</th>
+                        <th>Used</th>
+                        <th>Available</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($balances as $balance): ?>
+                        <tr>
+                            <td><?= e($balance['name']) ?></td>
+                            <td><?= e(format_days($balance['entitlement'])) ?></td>
+                            <td><?= e(format_days($balance['carried_forward'])) ?></td>
+                            <td><?= e(format_days($balance['used_days'])) ?></td>
+                            <td><span class="badge success"><?= e(format_days($balance['available_days'])) ?> days</span></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </section>
+<?php endif; ?>
+
 <section class="panel">
     <div class="panel-heading">
         <div>
             <p class="eyebrow">Records</p>
             <h2>My Leave History</h2>
         </div>
-        <?php if ($employee): ?>
-            <a class="btn btn-primary" href="<?= e(url('leave/apply')) ?>">New Request</a>
-        <?php endif; ?>
     </div>
 
     <?php if (!$employee): ?>

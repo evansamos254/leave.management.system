@@ -39,7 +39,7 @@
                         </td>
                         <td>
                             <?= e($worker['staff_id']) ?>
-                            <small><?= e($worker['designation'] ?? '') ?></small>
+                            <small><?= e(designation_label($worker['designation'] ?? null, $worker['role'] ?? null)) ?></small>
                         </td>
                         <td><?= e($directorateLabel) ?></td>
                         <td><?= e($departmentLabel) ?></td>

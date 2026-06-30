@@ -133,6 +133,7 @@ CREATE TABLE leave_requests (
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   finalized_at DATETIME NULL,
   resumed_at DATETIME NULL,
+  end_reminder_sent_at DATETIME NULL,
   resumed_by_user_id INT UNSIGNED NULL,
   resumption_notes TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

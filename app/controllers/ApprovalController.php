@@ -88,7 +88,8 @@ class ApprovalController
             LeaveBalanceService::deduct(
                 (int) $request['employee_id'],
                 (int) $request['leave_type_id'],
-                (float) $request['days_requested']
+                (float) $request['days_requested'],
+                financial_year_key($request['start_date'] ?? null)
             );
 
             NotificationService::create(
