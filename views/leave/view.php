@@ -5,7 +5,7 @@
                 <p class="eyebrow">Request #<?= (int) $request['id'] ?></p>
                 <h2><?= e($request['leave_type_name']) ?></h2>
             </div>
-            <span class="badge <?= str_starts_with($request['status'], 'pending_') ? 'warning' : e($request['status']) ?>">
+            <span class="badge <?= e(status_badge_class($request['status'])) ?>">
                 <?= e(status_label($request['status'])) ?>
             </span>
         </div>
@@ -37,7 +37,7 @@
             </div>
             <div>
                 <span>Contact</span>
-                <strong><?= e($request['contact_number'] ?? 'N/A') ?></strong>
+                <strong><?= e(format_kenyan_phone_number($request['contact_number'] ?? '')) ?: 'N/A' ?></strong>
             </div>
         </div>
 
@@ -81,6 +81,44 @@
                             <button class="btn btn-primary" type="submit">Mark Reported Back</button>
                         </form>
                     <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($request['forfeiture_id']) || !empty($canForfeit)): ?>
+            <div class="note-box">
+                <span>Forfeiture / Payout</span>
+                <?php if (!empty($request['forfeiture_id'])): ?>
+                    <p>This leave has been forfeited and the payout record has been saved.</p>
+                    <p>Forfeited days: <?= e(format_days($request['days_forfeited'] ?? null)) ?>.</p>
+                    <p>Payout amount: <?= e(format_currency($request['payout_amount'] ?? null)) ?>.</p>
+                    <p>
+                        Recorded by <?= e($request['forfeited_by_name'] ?? 'HR') ?>
+                        on <?= e(format_date($request['forfeited_at'] ?? null)) ?>.
+                    </p>
+                    <?php if (!empty($request['forfeiture_notes'])): ?>
+                        <p><?= nl2br(e($request['forfeiture_notes'])) ?></p>
+                    <?php endif; ?>
+                <?php elseif (!empty($canForfeit)): ?>
+                    <form class="form" method="post" action="<?= e(url('leave/forfeit')) ?>">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="id" value="<?= (int) $request['id'] ?>">
+                        <div class="grid-form">
+                            <label>
+                                <span>Forfeited days</span>
+                                <input type="number" name="days_forfeited" value="<?= e(format_days($request['days_requested'] ?? null, '')) ?>" min="1" step="1" required>
+                            </label>
+                            <label>
+                                <span>Payout amount</span>
+                                <input type="number" name="payout_amount" min="0.01" step="0.01" placeholder="Enter payout amount" required>
+                            </label>
+                            <label class="span-2">
+                                <span>Notes</span>
+                                <textarea name="notes" rows="3" placeholder="Optional payment note or HR remarks"></textarea>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Record Forfeiture Payout</button>
+                    </form>
                 <?php endif; ?>
             </div>
         <?php endif; ?>

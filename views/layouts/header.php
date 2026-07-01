@@ -201,7 +201,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                     </label>
                                     <label>
                                         <span>Phone number</span>
-                                        <input type="text" name="phone" value="<?= e($authUser['phone'] ?? '') ?>">
+                                        <input type="tel" name="phone" value="<?= e(format_kenyan_phone_number($authUser['phone'] ?? '')) ?>" inputmode="tel" autocomplete="tel" placeholder="+254 700 000 000">
                                     </label>
                                     <button class="btn btn-small btn-primary" type="submit">Save Profile</button>
                                 </form>
@@ -263,7 +263,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                 </div>
                                 <div>
                                     <span>Phone</span>
-                                    <strong><?= e($authUser['phone'] ?? 'N/A') ?></strong>
+                                    <strong><?= e(format_kenyan_phone_number($authUser['phone'] ?? '') ?: 'N/A') ?></strong>
                                 </div>
                                 <div>
                                     <span>Payroll / ID</span>

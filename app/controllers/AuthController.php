@@ -266,6 +266,11 @@ class AuthController
             $errors['gender'] = 'Gender is required.';
         }
 
+        $phoneError = kenyan_phone_number_error($data['phone']);
+        if ($phoneError !== null) {
+            $errors['phone'] = $phoneError;
+        }
+
         if ($data['staff_id'] === '') {
             $errors['staff_id'] = 'Payroll or ID number is required.';
         } elseif (Employee::findByStaffId($data['staff_id'])) {

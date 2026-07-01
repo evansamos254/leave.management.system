@@ -91,6 +91,11 @@ class LeaveController
             $errors['end_date'] = 'End date cannot be in the past.';
         }
 
+        $phoneError = kenyan_phone_number_error($contactNumber, 'Contact number');
+        if ($phoneError !== null) {
+            $errors['contact_number'] = $phoneError;
+        }
+
         if ($this->validDate($startDate) && $this->validDate($endDate) && strtotime($endDate) < strtotime($startDate)) {
             $errors['end_date'] = 'End date cannot be earlier than start date.';
         }
@@ -249,6 +254,11 @@ class LeaveController
             $errors['end_date'] = 'Please provide a valid end date.';
         }
 
+        $phoneError = kenyan_phone_number_error($contactNumber, 'Contact number');
+        if ($phoneError !== null) {
+            $errors['contact_number'] = $phoneError;
+        }
+
         if ($this->validDate($startDate) && $this->validDate($endDate) && strtotime($endDate) < strtotime($startDate)) {
             $errors['end_date'] = 'End date cannot be earlier than start date.';
         }
@@ -377,6 +387,7 @@ class LeaveController
             'request' => $request,
             'steps' => ApprovalWorkflowService::steps($id),
             'canEdit' => $this->canEdit($request),
+            'canForfeit' => $this->canForfeit($request),
             'canApprove' => $this->canApprove($request),
             'canMarkResumed' => $this->canMarkResumed($request),
             'reportBackDate' => LeaveBalanceService::returnDateAfter($request['end_date']),
@@ -433,19 +444,55 @@ class LeaveController
         $id = (int) ($_POST['id'] ?? 0);
         $request = LeaveRequest::find($id);
         $notes = trim($_POST['resumption_notes'] ?? '');
+        $actor = current_user();
+        $selfReported = $request && (int) $request['employee_user_id'] === (int) $actor['id'];
 
         if (!$request || !$this->canView($request)) {
             set_flash('error', 'Leave request could not be found or accessed.');
             redirect('leave/history');
         }
 
-        if (!$this->canMarkResumed($request)) {
+        if (!$selfReported && !$this->canMarkResumed($request)) {
             set_flash('error', 'This leave request cannot be marked as reported back yet.');
             header('Location: ' . url('leave/view') . '&id=' . $id);
             exit;
         }
 
-        LeaveRequest::markResumed($id, (int) current_user()['id'], $notes !== '' ? $notes : null);
+        if ($request['status'] !== 'approved' || !empty($request['resumed_at'])) {
+            set_flash('error', 'This leave request has already been reported back or is not yet approved.');
+            if ($selfReported) {
+                redirect('dashboard');
+            }
+
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        if ($selfReported && strtotime(date('Y-m-d')) < strtotime((string) $request['start_date'])) {
+            set_flash('error', 'You can only report back after your leave has started.');
+            redirect('dashboard');
+        }
+
+        $resumptionNotes = $notes !== ''
+            ? $notes
+            : ($selfReported ? 'Self-reported from the dashboard.' : null);
+
+        LeaveRequest::markResumed($id, (int) $actor['id'], $resumptionNotes);
+
+        if ($selfReported) {
+            AuditService::record('mark_leave_resumed_self', 'leave_requests', $id);
+            $this->notifyReturnFromLeave($request, $actor);
+            NotificationService::create(
+                (int) $request['employee_user_id'],
+                'Return from leave sent',
+                'Your supervisor and HR have been notified that you are back from leave.',
+                url('leave/view') . '&id=' . $id
+            );
+
+            set_flash('success', 'Your return from leave has been sent to your supervisor and HR.');
+            redirect('dashboard');
+        }
+
         AuditService::record('mark_leave_resumed', 'leave_requests', $id);
         NotificationService::create(
             (int) $request['employee_user_id'],
@@ -455,6 +502,103 @@ class LeaveController
         );
 
         set_flash('success', 'Staff return from leave recorded.');
+        header('Location: ' . url('leave/view') . '&id=' . $id);
+        exit;
+    }
+
+    public function forfeit(): void
+    {
+        require_role(['admin', 'hr']);
+        verify_csrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $request = LeaveRequest::find($id);
+
+        if (!$request || !$this->canView($request)) {
+            set_flash('error', 'Only approved leave requests can be forfeited.');
+            redirect('leave/history');
+        }
+
+        if ($request['status'] !== 'approved') {
+            set_flash('error', 'Only approved leave requests can be forfeited.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        if (!empty($request['forfeiture_id'])) {
+            set_flash('error', 'This leave request has already been marked as forfeited.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        if (!empty($request['resumed_at'])) {
+            set_flash('error', 'This leave request has already been reported back and cannot be forfeited.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        $daysForfeited = (float) str_replace(',', '', trim((string) ($_POST['days_forfeited'] ?? '')));
+        $payoutAmount = (float) str_replace(',', '', trim((string) ($_POST['payout_amount'] ?? '')));
+        $notes = trim($_POST['notes'] ?? '');
+        $approvedDays = (float) ($request['days_requested'] ?? 0);
+        $errors = [];
+
+        if ($daysForfeited <= 0) {
+            $errors[] = 'Forfeited days must be greater than zero.';
+        } elseif (abs($daysForfeited - $approvedDays) > 0.01) {
+            $errors[] = 'Forfeited days must match the approved leave days.';
+        }
+
+        if ($payoutAmount <= 0) {
+            $errors[] = 'Payout amount must be greater than zero.';
+        }
+
+        if ($errors) {
+            set_flash('error', implode(' ', $errors));
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        $forfeitureData = [
+            'leave_request_id' => $id,
+            'days_forfeited' => $daysForfeited,
+            'payout_amount' => $payoutAmount,
+            'notes' => $notes !== '' ? $notes : null,
+            'recorded_by_user_id' => (int) current_user()['id'],
+        ];
+
+        try {
+            db()->beginTransaction();
+
+            LeaveForfeiture::create($forfeitureData);
+            LeaveRequest::updateStatus($id, 'forfeited');
+            AuditService::record('record_leave_forfeiture', 'leave_requests', $id);
+
+            db()->commit();
+        } catch (Throwable $throwable) {
+            db()->rollBack();
+            app_log($throwable);
+            set_flash('error', 'Leave forfeiture could not be recorded.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        $forfeiture = LeaveForfeiture::findByRequestId($id) ?? $forfeitureData;
+
+        NotificationService::create(
+            (int) $request['employee_user_id'],
+            'Leave forfeiture payout recorded',
+            'Your leave forfeiture payout of ' . format_currency($payoutAmount) . ' has been recorded for ' . $request['leave_type_name'] . '.',
+            url('leave/view') . '&id=' . $id
+        );
+
+        $emailSent = ExternalNotificationService::leaveForfeitureRecorded($request, $forfeiture);
+        $message = 'Leave forfeiture recorded for ' . $request['employee_name'] . '. Payout ' . format_currency($payoutAmount) . ' saved.';
+        $message .= $emailSent
+            ? ' Email sent to staff member.'
+            : ' Email could not be sent to staff member.' . $this->emailFailureSuffix();
+
+        set_flash('success', $message);
         header('Location: ' . url('leave/view') . '&id=' . $id);
         exit;
     }
@@ -663,6 +807,18 @@ class LeaveController
         return strtotime(date('Y-m-d')) >= strtotime($reportBackDate);
     }
 
+    private function canForfeit(array $request): bool
+    {
+        $user = current_user();
+        if (!$user || !in_array($user['role'], ['admin', 'hr'], true)) {
+            return false;
+        }
+
+        return ($request['status'] ?? '') === 'approved'
+            && empty($request['forfeiture_id'])
+            && empty($request['resumed_at']);
+    }
+
     private function activeLeaveMessage(array $request): string
     {
         return 'You already have an active leave request for '
@@ -680,5 +836,44 @@ class LeaveController
     {
         header('Location: ' . url('leave/edit') . '&id=' . $id);
         exit;
+    }
+
+    private function emailFailureSuffix(): string
+    {
+        $reason = trim(ExternalNotificationService::lastEmailError());
+
+        return $reason !== ''
+            ? ' Reason: ' . rtrim($reason, '.') . '.'
+            : ' Check outbound notification logs.';
+    }
+
+    private function notifyReturnFromLeave(array $request, array $actor): void
+    {
+        $link = url('leave/view') . '&id=' . (int) $request['id'];
+        $title = 'Staff reported back from leave';
+        $message = $request['employee_name'] . ' has indicated they are back from '
+            . ($request['leave_type_name'] ?? 'leave')
+            . '. Leave period: '
+            . format_date($request['start_date'])
+            . ' to '
+            . format_date($request['end_date'])
+            . '. Report-back date: '
+            . format_date(LeaveBalanceService::returnDateAfter((string) $request['end_date']))
+            . '.';
+
+        $notifiedSupervisor = false;
+        if (!empty($request['supervisor_id'])) {
+            $supervisor = Employee::find((int) $request['supervisor_id']);
+            if ($supervisor && !empty($supervisor['user_id']) && (int) $supervisor['user_id'] !== (int) $actor['id']) {
+                NotificationService::create((int) $supervisor['user_id'], $title, $message, $link);
+                $notifiedSupervisor = true;
+            }
+        }
+
+        if (!$notifiedSupervisor) {
+            NotificationService::notifyRolesInEmployeeDepartment(['supervisor'], (int) $request['employee_id'], $title, $message, $link);
+        }
+
+        NotificationService::notifyRoles(['hr'], $title, $message, $link);
     }
 }

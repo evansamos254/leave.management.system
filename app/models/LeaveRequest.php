@@ -14,7 +14,7 @@ class LeaveRequest
         $stmt->execute([
             'employee_id' => $data['employee_id'],
             'leave_type_id' => $data['leave_type_id'],
-            'contact_number' => $data['contact_number'] ?? null,
+            'contact_number' => normalize_kenyan_phone_number($data['contact_number'] ?? null),
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'days_requested' => $data['days_requested'],
@@ -43,7 +43,7 @@ class LeaveRequest
 
         $stmt->execute([
             'leave_type_id' => $data['leave_type_id'],
-            'contact_number' => $data['contact_number'] ?? null,
+            'contact_number' => normalize_kenyan_phone_number($data['contact_number'] ?? null),
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
             'days_requested' => $data['days_requested'],
@@ -61,6 +61,8 @@ class LeaveRequest
                     e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     ru.full_name AS resumed_by_name,
+                    lf.id AS forfeiture_id, lf.days_forfeited, lf.payout_amount, lf.notes AS forfeiture_notes,
+                    lf.recorded_at AS forfeited_at, lfu.full_name AS forfeited_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
@@ -68,6 +70,8 @@ class LeaveRequest
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
              LEFT JOIN users ru ON ru.id = lr.resumed_by_user_id
+             LEFT JOIN leave_forfeitures lf ON lf.leave_request_id = lr.id
+             LEFT JOIN users lfu ON lfu.id = lf.recorded_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.id = ?'
@@ -81,9 +85,13 @@ class LeaveRequest
     public static function forEmployee(int $employeeId): array
     {
         $stmt = db()->prepare(
-            'SELECT lr.*, lt.name AS leave_type_name
+            'SELECT lr.*, lt.name AS leave_type_name,
+                    lf.id AS forfeiture_id, lf.days_forfeited, lf.payout_amount, lf.notes AS forfeiture_notes,
+                    lf.recorded_at AS forfeited_at, lfu.full_name AS forfeited_by_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
+             LEFT JOIN leave_forfeitures lf ON lf.leave_request_id = lr.id
+             LEFT JOIN users lfu ON lfu.id = lf.recorded_by_user_id
              WHERE lr.employee_id = ?
              ORDER BY lr.submitted_at DESC'
         );
@@ -103,6 +111,34 @@ class LeaveRequest
                AND lr.status IN ('pending_supervisor', 'approved')
                AND lr.end_date >= ?
              ORDER BY lr.submitted_at ASC, lr.id ASC
+             LIMIT 1"
+        );
+        $stmt->execute([$employeeId, $date]);
+        $request = $stmt->fetch();
+
+        return $request ?: null;
+    }
+
+    public static function awaitingResumptionForEmployee(int $employeeId, ?string $date = null): ?array
+    {
+        $date = $date ?: date('Y-m-d');
+        $stmt = db()->prepare(
+            "SELECT lr.*, lt.name AS leave_type_name,
+                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.supervisor_id,
+                    u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
+                    d.directorate_id, d.name AS department_name,
+                    dir.name AS directorate_name
+             FROM leave_requests lr
+             JOIN leave_types lt ON lt.id = lr.leave_type_id
+             JOIN employees e ON e.id = lr.employee_id
+             JOIN users u ON u.id = e.user_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN directorates dir ON dir.id = d.directorate_id
+             WHERE lr.employee_id = ?
+               AND lr.status = 'approved'
+               AND lr.resumed_at IS NULL
+               AND lr.start_date <= ?
+             ORDER BY lr.end_date DESC, lr.start_date DESC, lr.id DESC
              LIMIT 1"
         );
         $stmt->execute([$employeeId, $date]);
@@ -393,7 +429,7 @@ class LeaveRequest
 
     public static function updateStatus(int $id, string $status, ?string $rejectionReason = null): void
     {
-        $finalized = in_array($status, ['approved', 'rejected', 'cancelled'], true) ? ', finalized_at = NOW()' : '';
+        $finalized = in_array($status, ['approved', 'rejected', 'cancelled', 'forfeited'], true) ? ', finalized_at = NOW()' : '';
         $stmt = db()->prepare(
             "UPDATE leave_requests
              SET status = ?, rejection_reason = ? $finalized
@@ -450,6 +486,7 @@ class LeaveRequest
             'approved' => 0,
             'rejected' => 0,
             'cancelled' => 0,
+            'forfeited' => 0,
             'total' => 0,
         ];
 

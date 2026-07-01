@@ -39,12 +39,14 @@ class PdfService
 
     private function officialLeaveForm(array $request, array $steps): void
     {
-        $approved = ($request['status'] ?? '') === 'approved';
+        $status = (string) ($request['status'] ?? '');
+        $approved = $status === 'approved';
+        $forfeited = $status === 'forfeited';
         $supervisorStep = $this->stepForRole($steps, 'supervisor');
-        $status = status_label((string) ($request['status'] ?? ''));
+        $statusLabel = status_label($status);
         $reportBackDate = $approved ? LeaveBalanceService::returnDateAfter((string) $request['end_date']) : '-';
         $this->pageFrame();
-        $this->headerBlock((int) $request['id'], $approved);
+        $this->headerBlock((int) $request['id'], $status);
 
         $this->sectionBand(700, 'PART A: STAFF DETAILS');
         $this->fieldBox(50, 660, 248, 34, 'Staff name', $request['employee_name'] ?? 'N/A');
@@ -52,7 +54,7 @@ class PdfService
         $this->fieldBox(50, 626, 248, 34, 'Department', $request['directorate_name'] ?? 'N/A');
         $this->fieldBox(298, 626, 247, 34, 'Directorate', $request['department_name'] ?? 'N/A');
         $this->fieldBox(50, 592, 248, 34, 'Email address', $request['employee_email'] ?? 'N/A');
-        $this->fieldBox(298, 592, 247, 34, 'Contact number', $request['contact_number'] ?? ($request['employee_phone'] ?? 'N/A'));
+        $this->fieldBox(298, 592, 247, 34, 'Contact number', format_kenyan_phone_number($request['contact_number'] ?? ($request['employee_phone'] ?? '')));
 
         $this->sectionBand(552, 'PART B: LEAVE DETAILS');
         $this->fieldBox(50, 512, 248, 34, 'Leave type', $request['leave_type_name'] ?? 'N/A');
@@ -60,29 +62,46 @@ class PdfService
         $this->fieldBox(50, 478, 165, 34, 'Start date', format_date($request['start_date'] ?? null));
         $this->fieldBox(215, 478, 165, 34, 'End date', format_date($request['end_date'] ?? null));
         $this->fieldBox(380, 478, 165, 34, 'Report back', $approved ? format_date($reportBackDate) : '-');
-        $this->fieldBox(50, 444, 248, 34, 'Request status', $status);
+        $this->fieldBox(50, 444, 248, 34, 'Request status', $statusLabel);
         $this->fieldBox(298, 444, 247, 34, 'Submitted on', format_date($request['submitted_at'] ?? null));
         $this->multiLineBox(50, 374, 495, 70, 'Reason for leave', $request['reason'] ?? 'N/A');
 
         $this->sectionBand(334, 'PART C: HANDOVER / DUTY COVER');
         $this->multiLineBox(50, 254, 495, 80, 'Handover notes', $request['handover_notes'] ?? 'N/A');
 
-        $this->sectionBand(224, 'PART D: APPROVAL CERTIFICATE');
-        $this->textAt(58, 205, 'This section confirms the official decision recorded in the online leave system.', 9);
-        $this->checkbox(58, 187, $approved, 'Approved');
-        $this->checkbox(145, 187, ($request['status'] ?? '') === 'rejected', 'Rejected');
-        $this->checkbox(232, 187, str_starts_with((string) ($request['status'] ?? ''), 'pending_'), 'Pending');
-        $this->fieldBox(50, 150, 248, 35, 'Approving officer', $supervisorStep['approver_name'] ?? 'Pending supervisor action');
-        $this->fieldBox(298, 150, 247, 35, 'Approval date', format_date($supervisorStep['acted_at'] ?? null));
-        $this->fieldBox(50, 114, 248, 36, 'Supervisor comments', $supervisorStep['comments'] ?? 'N/A', 8);
-        $this->fieldBox(298, 114, 247, 36, 'HR records', $approved ? 'Approved form available for record keeping' : 'Pending final approval');
+        $this->sectionBand(224, $forfeited ? 'PART D: FORFEITURE CERTIFICATE' : 'PART D: APPROVAL CERTIFICATE');
+        $this->textAt(58, 205, $forfeited
+            ? 'This section confirms that the leave was forfeited and a payout record has been captured in the system.'
+            : 'This section confirms the official decision recorded in the online leave system.', 9);
+
+        if ($forfeited) {
+            $this->checkbox(58, 187, false, 'Approved');
+            $this->checkbox(145, 187, true, 'Forfeited');
+            $this->checkbox(245, 187, false, 'Pending');
+            $this->fieldBox(50, 150, 248, 35, 'Recorded by', $request['forfeited_by_name'] ?? 'HR');
+            $this->fieldBox(298, 150, 247, 35, 'Recorded on', format_date($request['forfeited_at'] ?? null));
+            $this->fieldBox(50, 114, 248, 36, 'Forfeiture note', $request['forfeiture_notes'] ?? 'N/A', 8);
+            $this->fieldBox(298, 114, 247, 36, 'Payroll records', 'Payout record saved for payroll processing');
+        } else {
+            $this->checkbox(58, 187, $approved, 'Approved');
+            $this->checkbox(145, 187, ($request['status'] ?? '') === 'rejected', 'Rejected');
+            $this->checkbox(232, 187, str_starts_with((string) ($request['status'] ?? ''), 'pending_'), 'Pending');
+            $this->fieldBox(50, 150, 248, 35, 'Approving officer', $supervisorStep['approver_name'] ?? 'Pending supervisor action');
+            $this->fieldBox(298, 150, 247, 35, 'Approval date', format_date($supervisorStep['acted_at'] ?? null));
+            $this->fieldBox(50, 114, 248, 36, 'Supervisor comments', $supervisorStep['comments'] ?? 'N/A', 8);
+            $this->fieldBox(298, 114, 247, 36, 'HR records', $approved ? 'Approved form available for record keeping' : 'Pending final approval');
+        }
 
         $this->hroConfirmationLine(50, 99);
 
-        $this->sectionBand(74, 'PART E: RETURN / RESUMPTION');
+        $this->sectionBand(74, $forfeited ? 'PART E: FORFEITURE / PAYOUT' : 'PART E: RETURN / RESUMPTION');
         if ($approved) {
             $this->fieldBox(50, 42, 360, 30, 'Expected report-back date', format_date($reportBackDate));
             $this->stamp(430, 43, 'APPROVED');
+        } elseif ($forfeited) {
+            $this->fieldBox(50, 42, 165, 30, 'Forfeited days', format_days($request['days_forfeited'] ?? null, 'N/A'));
+            $this->fieldBox(215, 42, 165, 30, 'Payout amount', format_currency($request['payout_amount'] ?? null));
+            $this->fieldBox(380, 42, 165, 30, 'Payroll note', 'Awaiting payroll settlement');
         } else {
             $this->fieldBox(50, 42, 495, 30, 'Expected report-back date', '-');
         }
@@ -265,7 +284,7 @@ class PdfService
         $this->rect(36, 36, 523, 770);
     }
 
-    private function headerBlock(int $requestId, bool $approved): void
+    private function headerBlock(int $requestId, string $status): void
     {
         $this->rect(50, 724, 495, 70, false, [0.96, 0.99, 0.94]);
         $this->rect(50, 724, 495, 70);
@@ -273,8 +292,11 @@ class PdfService
         $this->drawImage($this->watermark, 'WmLogo', 494, 739, 43);
         $this->centerText(780, 'COUNTY GOVERNMENT OF BUSIA', 13, 'F2');
         $this->centerText(764, 'STAFF ONLINE LEAVE APPLICATION SYSTEM', 10, 'F2');
-        $this->centerText(744, $approved ? 'APPROVED LEAVE FORM' : 'LEAVE APPLICATION FORM', 15, 'F2');
-        $this->centerText(731, 'Form No: LAF-' . $requestId . ' | Status: ' . ($approved ? 'Approved' : 'In progress'), 8);
+        $title = $status === 'approved'
+            ? 'APPROVED LEAVE FORM'
+            : ($status === 'forfeited' ? 'FORFEITED LEAVE FORM' : 'LEAVE APPLICATION FORM');
+        $this->centerText(744, $title, 15, 'F2');
+        $this->centerText(731, 'Form No: LAF-' . $requestId . ' | Status: ' . status_label($status), 8);
         $this->colorLine(50, 724, 495, 3);
     }
 
@@ -320,11 +342,14 @@ class PdfService
         $this->textAt($x + 15, $y + 1, $label, 9);
     }
 
-    private function stamp(float $x, float $y, string $text): void
+    private function stamp(float $x, float $y, string $text, ?array $fill = null, ?array $strokeColor = null, ?array $textColor = null): void
     {
-        $this->rect($x, $y, 92, 28, false, [0.86, 0.96, 0.89]);
-        $this->rect($x, $y, 92, 28, true, null, [0.07, 0.39, 0.19], 1.4);
-        $this->textAt($x + 16, $y + 9, $text, 13, 'F2', [0.07, 0.39, 0.19]);
+        $fill = $fill ?? [0.86, 0.96, 0.89];
+        $strokeColor = $strokeColor ?? [0.07, 0.39, 0.19];
+        $textColor = $textColor ?? [0.07, 0.39, 0.19];
+        $this->rect($x, $y, 92, 28, false, $fill);
+        $this->rect($x, $y, 92, 28, true, null, $strokeColor, 1.4);
+        $this->textAt($x + 16, $y + 9, $text, 13, 'F2', $textColor);
     }
 
     private function rect(float $x, float $y, float $w, float $h, bool $stroke = true, ?array $fill = null, ?array $strokeColor = null, float $lineWidth = 0.5): void

@@ -41,6 +41,9 @@ try {
         'leave/resume' => is_post()
             ? (new LeaveController())->markResumed()
             : (new LeaveController())->history(),
+        'leave/forfeit' => is_post()
+            ? (new LeaveController())->forfeit()
+            : (new LeaveController())->history(),
         'leave/attachment' => (new LeaveController())->attachment(),
         'approvals' => (new ApprovalController())->index(),
         'approvals/action' => (new ApprovalController())->action(),

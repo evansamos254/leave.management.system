@@ -67,7 +67,7 @@ class User
             'gender' => self::normalizeGender($data['gender'] ?? null),
             'password_hash' => $data['password_hash'],
             'role' => $data['role'] ?? 'employee',
-            'phone' => $data['phone'] ?? null,
+            'phone' => normalize_kenyan_phone_number($data['phone'] ?? null),
             'employment_document_path' => $data['employment_document_path'] ?? null,
             'status' => $data['status'] ?? 'active',
             'must_change_password' => !empty($data['must_change_password']) ? 1 : 0,
@@ -141,7 +141,7 @@ class User
             'email' => $data['email'],
             'national_id' => ($data['national_id'] ?? '') !== '' ? self::normalizeNationalId($data['national_id']) : null,
             'gender' => self::normalizeGender($data['gender'] ?? null),
-            'phone' => $data['phone'] !== '' ? $data['phone'] : null,
+            'phone' => normalize_kenyan_phone_number($data['phone'] ?? null),
             'id' => $id,
         ]);
     }

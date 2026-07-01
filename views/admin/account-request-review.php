@@ -27,7 +27,7 @@
             </div>
             <div>
                 <span>Phone number</span>
-                <strong><?= e($request['phone'] ?? 'N/A') ?></strong>
+                <strong><?= e(format_kenyan_phone_number($request['phone'] ?? '') ?: 'N/A') ?></strong>
             </div>
             <div>
                 <span>Requested role</span>

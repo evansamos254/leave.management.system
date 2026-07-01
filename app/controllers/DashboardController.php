@@ -25,6 +25,9 @@ class DashboardController
         $liveOverview = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true)
             ? LeaveRequest::liveOverview($user['role'], $employee ? (int) $employee['id'] : null)
             : null;
+        $returnToDutyRequest = $employee
+            ? LeaveRequest::awaitingResumptionForEmployee((int) $employee['id'])
+            : null;
 
         view('dashboard/index', [
             'title' => 'Dashboard',
@@ -35,6 +38,7 @@ class DashboardController
             'leaveTypeStats' => $leaveTypeStats,
             'pendingApprovals' => $pendingApprovals,
             'liveOverview' => $liveOverview,
+            'returnToDutyRequest' => $returnToDutyRequest,
             'notifications' => NotificationService::recent((int) $user['id']),
             'stats' => [
                 'users' => User::countByRole(null, $user),
@@ -106,6 +110,11 @@ class DashboardController
 
         if ($data['gender'] === null) {
             $errors[] = 'Gender is required.';
+        }
+
+        $phoneError = kenyan_phone_number_error($data['phone']);
+        if ($phoneError !== null) {
+            $errors[] = $phoneError;
         }
 
         if ($errors) {

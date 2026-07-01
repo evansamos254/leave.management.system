@@ -39,6 +39,9 @@
                         <small><?= e($account['email']) ?></small>
                         <small>ID: <?= e($account['national_id'] ?? 'N/A') ?></small>
                         <small>Gender: <?= e(gender_label($account['gender'] ?? null)) ?></small>
+                        <?php if (!empty($account['phone'])): ?>
+                            <small><?= e(format_kenyan_phone_number($account['phone'])) ?></small>
+                        <?php endif; ?>
                     </td>
                     <td>
                         <?= e($account['staff_id'] ?? 'N/A') ?>

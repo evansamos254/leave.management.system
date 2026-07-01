@@ -38,7 +38,8 @@
         </label>
         <label>
             <span>Phone number</span>
-            <input type="text" name="phone" value="<?= e(old('phone')) ?>">
+            <input type="tel" name="phone" value="<?= e(old('phone')) ?>" inputmode="tel" autocomplete="tel" placeholder="+254 700 000 000">
+            <small>Use a Kenyan mobile number only.</small>
         </label>
         <label>
             <span>Payroll / ID number</span>

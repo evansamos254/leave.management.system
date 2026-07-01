@@ -36,6 +36,7 @@ class AdminController
             'approved',
             'rejected',
             'cancelled',
+            'forfeited',
         ];
 
         if (!in_array($status, $allowedStatuses, true)) {
@@ -715,6 +716,11 @@ class AdminController
             $errors[] = 'Gender is required.';
         }
 
+        $phoneError = kenyan_phone_number_error($data['phone']);
+        if ($phoneError !== null) {
+            $errors[] = $phoneError;
+        }
+
         if ($data['staff_id'] === '') {
             $errors[] = 'Payroll or ID number is required.';
         } elseif (Employee::findByStaffId($data['staff_id'])) {
@@ -794,6 +800,11 @@ class AdminController
 
         if ($data['gender'] === null) {
             $errors[] = 'Gender is required.';
+        }
+
+        $phoneError = kenyan_phone_number_error($data['phone']);
+        if ($phoneError !== null) {
+            $errors[] = $phoneError;
         }
 
         if ($data['staff_id'] === '') {

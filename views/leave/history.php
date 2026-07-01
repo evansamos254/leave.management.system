@@ -70,7 +70,12 @@
                         <td><?= e($request['leave_type_name']) ?></td>
                         <td><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></td>
                         <td><?= e(format_days($request['days_requested'])) ?></td>
-                        <td><span class="badge <?= str_starts_with($request['status'], 'pending_') ? 'warning' : e($request['status']) ?>"><?= e(status_label($request['status'])) ?></span></td>
+                        <td>
+                            <span class="badge <?= e(status_badge_class($request['status'])) ?>"><?= e(status_label($request['status'])) ?></span>
+                            <?php if (!empty($request['forfeiture_id'])): ?>
+                                <small>Payout <?= e(format_currency($request['payout_amount'] ?? null)) ?></small>
+                            <?php endif; ?>
+                        </td>
                         <td><?= e(format_date($request['submitted_at'])) ?></td>
                         <td>
                             <div class="button-row">

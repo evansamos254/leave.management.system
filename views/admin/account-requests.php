@@ -31,7 +31,7 @@
                             <small>ID: <?= e($request['national_id'] ?? 'N/A') ?></small>
                             <small>Gender: <?= e(gender_label($request['gender'] ?? null)) ?></small>
                             <?php if ($request['phone']): ?>
-                                <small><?= e($request['phone']) ?></small>
+                                <small><?= e(format_kenyan_phone_number($request['phone'])) ?></small>
                             <?php endif; ?>
                         </td>
                         <td>

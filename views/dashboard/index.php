@@ -46,6 +46,44 @@
     </section>
 <?php endif; ?>
 
+<?php if (!empty($returnToDutyRequest)): ?>
+    <?php
+    $reportBackDate = LeaveBalanceService::returnDateAfter((string) $returnToDutyRequest['end_date']);
+    $leaveHasEnded = strtotime(date('Y-m-d')) > strtotime((string) $returnToDutyRequest['end_date']);
+    ?>
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">Return to Duty</p>
+                <h2>Welcome back! Are you back from leave?</h2>
+            </div>
+            <span class="badge warning">Action needed</span>
+        </div>
+
+        <div class="note-box">
+            <span>Leave reminder</span>
+            <p>
+                <?php if ($leaveHasEnded): ?>
+                    Your approved leave ended on <?= e(format_date($returnToDutyRequest['end_date'])) ?>.
+                <?php else: ?>
+                    Your leave (Ref: LAF-<?= (int) $returnToDutyRequest['id'] ?>) started on
+                    <?= e(format_date($returnToDutyRequest['start_date'])) ?> and was scheduled to end on
+                    <?= e(format_date($returnToDutyRequest['end_date'])) ?>.
+                <?php endif; ?>
+                If you have resumed duty, click the button below to notify your supervisor and HR.
+            </p>
+            <p>Report-back date: <?= e(format_date($reportBackDate)) ?>.</p>
+            <div class="button-row">
+                <form method="post" action="<?= e(url('leave/resume')) ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $returnToDutyRequest['id'] ?>">
+                    <button class="btn btn-primary" type="submit">I Have Resumed Duty</button>
+                </form>
+            </div>
+        </div>
+    </section>
+<?php endif; ?>
+
 <?php
 $isHrOffice = $user['role'] === 'hr' && (!$employee || empty($employee['department_name']));
 $directorateLabel = $isHrOffice ? 'HR Office' : ($employee['directorate_name'] ?? 'Not assigned');

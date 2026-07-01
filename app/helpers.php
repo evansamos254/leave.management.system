@@ -138,6 +138,62 @@ function build_full_name(?string $firstName, ?string $lastName): string
     return trim(preg_replace('/\s+/', ' ', trim((string) $firstName) . ' ' . trim((string) $lastName)) ?? '');
 }
 
+function normalize_kenyan_phone_number(?string $phone): ?string
+{
+    $phone = trim((string) $phone);
+    if ($phone === '') {
+        return null;
+    }
+
+    $digits = preg_replace('/\D+/', '', $phone);
+    if ($digits === null || $digits === '') {
+        return null;
+    }
+
+    if (str_starts_with($digits, '254')) {
+        $digits = substr($digits, 3);
+    } elseif (str_starts_with($digits, '0')) {
+        $digits = substr($digits, 1);
+    }
+
+    if (!preg_match('/^(?:7|1)\d{8}$/', $digits)) {
+        return null;
+    }
+
+    return '+254' . $digits;
+}
+
+function is_valid_kenyan_phone_number(?string $phone): bool
+{
+    return normalize_kenyan_phone_number($phone) !== null;
+}
+
+function format_kenyan_phone_number(?string $phone): string
+{
+    $normalized = normalize_kenyan_phone_number($phone);
+
+    if ($normalized === null) {
+        return trim((string) $phone);
+    }
+
+    $subscriber = substr($normalized, 4);
+
+    return '+254 ' . substr($subscriber, 0, 3) . ' ' . substr($subscriber, 3, 3) . ' ' . substr($subscriber, 6);
+}
+
+function kenyan_phone_number_error(?string $phone, string $label = 'Phone number'): ?string
+{
+    $phone = trim((string) $phone);
+
+    if ($phone === '') {
+        return null;
+    }
+
+    return is_valid_kenyan_phone_number($phone)
+        ? null
+        : $label . ' must be a Kenyan mobile number, for example +254 700 000 000.';
+}
+
 function name_parts(?string $fullName): array
 {
     $name = trim(preg_replace('/\s+/', ' ', (string) $fullName) ?? '');
@@ -285,6 +341,19 @@ function require_role(array|string $roles): void
 function status_label(string $status): string
 {
     return str_replace(['Hr', 'Ict'], ['HR', 'ICT'], ucwords(str_replace('_', ' ', $status)));
+}
+
+function status_badge_class(string $status): string
+{
+    if (str_starts_with($status, 'pending_')) {
+        return 'warning';
+    }
+
+    return match ($status) {
+        'approved' => 'success',
+        'rejected', 'cancelled', 'forfeited' => 'danger',
+        default => $status,
+    };
 }
 
 function role_label(string $role): string
@@ -455,6 +524,19 @@ function format_days(mixed $value, string $default = '-'): string
     }
 
     return number_format((float) $value, 0, '.', ',');
+}
+
+function format_currency(mixed $value, string $currency = 'KSh', string $default = '-'): string
+{
+    if ($value === null || $value === '') {
+        return $default;
+    }
+
+    if (!is_numeric($value)) {
+        return (string) $value;
+    }
+
+    return $currency . ' ' . number_format((float) $value, 2, '.', ',');
 }
 
 function app_log(Throwable $throwable): void

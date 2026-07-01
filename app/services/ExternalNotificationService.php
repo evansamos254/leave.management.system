@@ -205,6 +205,34 @@ class ExternalNotificationService
         return self::sendLeaveEmail($request, 'Leave request rejected', $message);
     }
 
+    public static function leaveForfeitureRecorded(array $request, array $forfeiture): bool
+    {
+        $name = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';
+        $email = $request['employee_email'] ?? $request['email'] ?? '';
+        $phone = $request['employee_phone'] ?? $request['phone'] ?? null;
+        $notes = trim((string) ($forfeiture['notes'] ?? ''));
+
+        $message = 'Hello ' . $name . ',' . PHP_EOL . PHP_EOL
+            . 'Your leave request for ' . ($request['leave_type_name'] ?? 'leave') . ' has been marked as forfeited.' . PHP_EOL
+            . 'Forfeited days: ' . format_days($forfeiture['days_forfeited'] ?? null, 'N/A') . PHP_EOL
+            . 'Payout amount: ' . format_currency($forfeiture['payout_amount'] ?? null) . PHP_EOL;
+
+        if ($notes !== '') {
+            $message .= 'Notes: ' . $notes . PHP_EOL;
+        }
+
+        $message .= PHP_EOL . 'Please log in to view the full record and payment details.';
+
+        return self::sendToContact(
+            $name,
+            $email,
+            $phone,
+            'Leave forfeiture payout recorded',
+            $message,
+            'Leave forfeiture payout notification sent.'
+        );
+    }
+
     private static function sendLeaveEmail(array $request, string $subject, string $statusMessage): bool
     {
         $name = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';
@@ -265,8 +293,9 @@ class ExternalNotificationService
     ): bool {
         $emailSent = self::sendEmail($email, $subject, $message, $logMessage);
 
-        if ($phone !== null && trim($phone) !== '') {
-            self::sendSms($phone, $message, $logMessage);
+        $normalizedPhone = normalize_kenyan_phone_number($phone);
+        if ($normalizedPhone !== null) {
+            self::sendSms($normalizedPhone, $message, $logMessage);
         }
 
         return $emailSent;

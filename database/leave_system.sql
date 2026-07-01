@@ -9,6 +9,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS approval_steps;
+DROP TABLE IF EXISTS leave_forfeitures;
 DROP TABLE IF EXISTS leave_requests;
 DROP TABLE IF EXISTS leave_balances;
 DROP TABLE IF EXISTS holidays;
@@ -127,7 +128,8 @@ CREATE TABLE leave_requests (
     'pending_supervisor',
     'approved',
     'rejected',
-    'cancelled'
+    'cancelled',
+    'forfeited'
   ) NOT NULL DEFAULT 'pending_supervisor',
   rejection_reason TEXT NULL,
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -146,6 +148,23 @@ CREATE TABLE leave_requests (
     FOREIGN KEY (leave_type_id) REFERENCES leave_types(id) ON DELETE RESTRICT,
   CONSTRAINT fk_leave_requests_resumed_by
     FOREIGN KEY (resumed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE leave_forfeitures (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  leave_request_id INT UNSIGNED NOT NULL,
+  days_forfeited DECIMAL(6,2) NOT NULL,
+  payout_amount DECIMAL(10,2) NOT NULL,
+  notes TEXT NULL,
+  recorded_by_user_id INT UNSIGNED NULL,
+  recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_leave_forfeitures_request (leave_request_id),
+  CONSTRAINT fk_leave_forfeitures_request
+    FOREIGN KEY (leave_request_id) REFERENCES leave_requests(id) ON DELETE CASCADE,
+  CONSTRAINT fk_leave_forfeitures_user
+    FOREIGN KEY (recorded_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE approval_steps (

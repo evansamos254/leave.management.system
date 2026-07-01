@@ -32,11 +32,14 @@
                     ?>
                     <tr>
                         <td>
-                            <strong><?= e($worker['full_name']) ?></strong>
-                            <small><?= e($worker['email']) ?></small>
-                            <small>ID: <?= e($worker['national_id'] ?? 'N/A') ?></small>
-                            <small>Gender: <?= e(gender_label($worker['gender'] ?? null)) ?></small>
-                        </td>
+                        <strong><?= e($worker['full_name']) ?></strong>
+                        <small><?= e($worker['email']) ?></small>
+                        <small>ID: <?= e($worker['national_id'] ?? 'N/A') ?></small>
+                        <small>Gender: <?= e(gender_label($worker['gender'] ?? null)) ?></small>
+                        <?php if (!empty($worker['phone'])): ?>
+                            <small><?= e(format_kenyan_phone_number($worker['phone'])) ?></small>
+                        <?php endif; ?>
+                    </td>
                         <td>
                             <?= e($worker['staff_id']) ?>
                             <small><?= e(designation_label($worker['designation'] ?? null, $worker['role'] ?? null)) ?></small>

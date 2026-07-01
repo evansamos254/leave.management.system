@@ -69,7 +69,7 @@
             <?php else: ?>
                 <?php foreach ($requests as $request): ?>
                     <?php
-                    $statusClass = str_starts_with($request['status'], 'pending_') ? 'warning' : $request['status'];
+                    $statusClass = status_badge_class($request['status']);
                     ?>
                     <tr>
                         <td>
@@ -81,7 +81,12 @@
                         <td><?= e($request['leave_type_name']) ?></td>
                         <td><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></td>
                         <td><?= e(format_days($request['days_requested'])) ?></td>
-                        <td><span class="badge <?= e($statusClass) ?>"><?= e(status_label($request['status'])) ?></span></td>
+                        <td>
+                            <span class="badge <?= e($statusClass) ?>"><?= e(status_label($request['status'])) ?></span>
+                            <?php if (!empty($request['forfeiture_id'])): ?>
+                                <small><?= e(format_currency($request['payout_amount'] ?? null)) ?></small>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($request['status'] === 'approved'): ?>
                                 <?php if (!empty($request['resumed_at'])): ?>

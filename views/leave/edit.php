@@ -42,8 +42,9 @@
                 </label>
                 <label>
                     <span>Contact Number</span>
-                    <input type="text" name="contact_number" value="<?= e(old('contact_number', $request['contact_number'] ?? '')) ?>" class="<?= has_field_error('contact_number') ? 'is-invalid' : '' ?>">
+                    <input type="tel" name="contact_number" value="<?= e(old('contact_number', format_kenyan_phone_number($request['contact_number'] ?? ''))) ?>" class="<?= has_field_error('contact_number') ? 'is-invalid' : '' ?>" inputmode="tel" autocomplete="tel" placeholder="+254 700 000 000">
                     <?php if ($error = field_error('contact_number')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                    <small>Use a Kenyan mobile number only.</small>
                 </label>
                 <label>
                     <span>Leave Type</span>
