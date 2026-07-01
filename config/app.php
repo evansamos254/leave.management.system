@@ -33,13 +33,13 @@ return [
         'email' => [
             'enabled' => true,
             'transport' => 'smtp',
-            'from' => 'testleave040@busiacounty.go.ke',
+            'from' => 'noreply@busiacounty.go.ke',
             'from_name' => 'Busia County Leave System',
             'smtp' => [
                 'host' => 'mail.busiacounty.go.ke',
                 'port' => 587,
                 'encryption' => 'tls',
-                'username' => 'testleave040@busiacounty.go.ke',
+                'username' => 'noreply@busiacounty.go.ke',
                 'password' => getenv('LEAVE_SMTP_PASSWORD') ?: '',
                 'timeout' => 15,
                 ...$smtpOverrides,

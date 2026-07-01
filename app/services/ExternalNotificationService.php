@@ -369,7 +369,7 @@ class ExternalNotificationService
         $host = strtolower((string) ($smtp['host'] ?? ''));
         $port = (int) ($smtp['port'] ?? 587);
 
-        if ($host === 'smtp.gmail.com') {
+        if ($host === 'mail.busiacounty.go.ke') {
             if ($port !== 465) {
                 $fallback = $smtp;
                 $fallback['port'] = 465;
