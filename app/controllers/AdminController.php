@@ -413,6 +413,29 @@ class AdminController
         ]);
     }
 
+    public function userHistory(): void
+    {
+        require_role('admin');
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $targetUser = User::find($id);
+
+        if (!$targetUser) {
+            set_flash('error', 'User profile could not be found.');
+            redirect('admin/users');
+        }
+
+        $employee = Employee::findByUserId($id);
+
+        view('admin/user-history', [
+            'title' => 'Staff History',
+            'account' => $targetUser,
+            'employee' => $employee,
+            'activity' => AuditService::historyForUser($id),
+            'leaveRequests' => $employee ? LeaveRequest::forEmployee((int) $employee['id']) : [],
+        ]);
+    }
+
     public function updateUserProfile(): void
     {
         require_role('admin');
@@ -487,6 +510,44 @@ class AdminController
         }
 
         set_flash('success', 'Staff profile updated.');
+        redirect('admin/users');
+    }
+
+    public function toggleUserStatus(): void
+    {
+        require_role('admin');
+        verify_csrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $targetUser = User::find($id);
+
+        if (!$targetUser || $targetUser['role'] === 'admin') {
+            set_flash('error', 'Admin accounts cannot be changed from this action.');
+            redirect('admin/users');
+        }
+
+        if ($id === (int) current_user()['id']) {
+            set_flash('error', 'You cannot deactivate or reactivate your own account here.');
+            redirect('admin/users');
+        }
+
+        if (!in_array($targetUser['status'], ['active', 'inactive'], true)) {
+            set_flash('error', 'Only active or inactive accounts can be toggled from this shortcut.');
+            redirect('admin/users');
+        }
+
+        $newStatus = $targetUser['status'] === 'active' ? 'inactive' : 'active';
+        User::updateStatus($id, $newStatus);
+        AuditService::record(
+            $newStatus === 'inactive' ? 'deactivate_staff_account' : 'reactivate_staff_account',
+            'users',
+            $id
+        );
+
+        set_flash(
+            'success',
+            $targetUser['full_name'] . ' account ' . ($newStatus === 'inactive' ? 'deactivated' : 'reactivated') . '.'
+        );
         redirect('admin/users');
     }
 

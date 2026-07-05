@@ -32,7 +32,7 @@
                                 <small><?= e($log['actor_email']) ?></small>
                             <?php endif; ?>
                         </td>
-                        <td><span class="badge"><?= e(status_label($log['action'])) ?></span></td>
+                        <td><span class="badge"><?= e(audit_action_label($log['action'])) ?></span></td>
                         <td>
                             <?= e($log['entity_type'] ?? 'N/A') ?>
                             <?php if ($log['entity_id']): ?>

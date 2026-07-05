@@ -990,6 +990,7 @@ input[readonly] {
 }
 
 .inline-form { display: inline-flex; margin-top: 12px; }
+.button-row .inline-form { margin-top: 0; }
 
 
 /* ── Alerts ───────────────────────────── */

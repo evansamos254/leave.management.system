@@ -64,9 +64,13 @@ try {
         'admin/activity' => (new AdminController())->activity(),
         'admin/leave-requests' => (new AdminController())->leaveRequests(),
         'admin/users' => (new AdminController())->users(),
+        'admin/users/history' => (new AdminController())->userHistory(),
         'admin/users/edit' => is_post()
             ? (new AdminController())->updateUserProfile()
             : (new AdminController())->editUser(),
+        'admin/users/toggle-status' => is_post()
+            ? (new AdminController())->toggleUserStatus()
+            : (new AdminController())->users(),
         'admin/users/update' => (new AdminController())->updateUser(),
         'admin/users/reset-password' => is_post()
             ? (new AdminController())->resetUserPassword()

@@ -8,7 +8,10 @@
             <p class="eyebrow">Admin</p>
             <h2>Edit Staff Profile</h2>
         </div>
-        <a class="btn btn-ghost" href="<?= e(url('admin/users')) ?>">Back to Users</a>
+        <div class="button-row">
+            <a class="btn btn-ghost" href="<?= e(url('admin/users/history')) ?>&id=<?= (int) $account['id'] ?>">View History</a>
+            <a class="btn btn-ghost" href="<?= e(url('admin/users')) ?>">Back to Users</a>
+        </div>
     </div>
 
     <form class="form grid-form" method="post" action="<?= e(url('admin/users/edit')) ?>">

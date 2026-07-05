@@ -29,6 +29,7 @@
                 <?php
                 $canEditAccess = $viewer['role'] === 'admin' || !in_array($account['role'], $privilegedRoles, true);
                 $canAdminManage = $viewer['role'] === 'admin' && $account['role'] !== 'admin';
+                $canViewHistory = $viewer['role'] === 'admin';
                 $isHrOffice = $account['role'] === 'hr' && empty($account['department_name']);
                 $directorateLabel = $isHrOffice ? 'HR Office' : ($account['directorate_name'] ?? 'N/A');
                 $departmentLabel = $isHrOffice ? 'Office-level account' : ($account['department_name'] ?? 'N/A');
@@ -102,23 +103,35 @@
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if ($canAdminManage): ?>
-                            <div class="button-row">
+                        <div class="button-row">
+                            <?php if ($canViewHistory): ?>
+                                <a class="btn btn-small btn-ghost" href="<?= e(url('admin/users/history')) ?>&id=<?= (int) $account['id'] ?>">History</a>
+                            <?php endif; ?>
+                            <?php if ($canAdminManage): ?>
                                 <a class="btn btn-small btn-ghost" href="<?= e(url('admin/users/edit')) ?>&id=<?= (int) $account['id'] ?>">Edit Profile</a>
                                 <form method="post" action="<?= e(url('admin/users/reset-password')) ?>" class="inline-form confirm-form" data-confirm="Reset this staff password and generate a temporary password?">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $account['id'] ?>">
                                     <button class="btn btn-small btn-ghost" type="submit">Reset Password</button>
                                 </form>
+                                <?php if (in_array($account['status'], ['active', 'inactive'], true)): ?>
+                                    <form method="post" action="<?= e(url('admin/users/toggle-status')) ?>" class="inline-form confirm-form" data-confirm="<?= $account['status'] === 'active' ? 'Deactivate this staff account?' : 'Reactivate this staff account?' ?>">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="id" value="<?= (int) $account['id'] ?>">
+                                        <button class="btn btn-small <?= $account['status'] === 'active' ? 'btn-danger' : 'btn-primary' ?>" type="submit">
+                                            <?= $account['status'] === 'active' ? 'Deactivate' : 'Reactivate' ?>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                                 <form method="post" action="<?= e(url('admin/users/delete')) ?>" class="inline-form confirm-form" data-confirm="Delete this staff account and its related leave records?">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $account['id'] ?>">
                                     <button class="btn btn-small btn-danger" type="submit">Delete</button>
                                 </form>
-                            </div>
-                        <?php else: ?>
+                            <?php else: ?>
                             <span class="muted"><?= $viewer['role'] === 'admin' ? 'Protected' : 'Admin only' ?></span>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

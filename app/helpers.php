@@ -270,6 +270,13 @@ function current_user(): ?array
     if ($loadedUserId !== $userId) {
         $loadedUserId = $userId;
         $loadedUser = User::find($userId);
+
+        if ($loadedUser !== null && ($loadedUser['status'] ?? 'active') !== 'active') {
+            clear_auth_session();
+            $loadedUserId = null;
+            $loadedUser = null;
+            return null;
+        }
     }
 
     return $loadedUser;
@@ -362,6 +369,46 @@ function require_role(array|string $roles): void
 function status_label(string $status): string
 {
     return str_replace(['Hr', 'Ict'], ['HR', 'ICT'], ucwords(str_replace('_', ' ', $status)));
+}
+
+function audit_action_label(string $action): string
+{
+    $labels = [
+        'login' => 'Logged in',
+        'logout' => 'Logged out',
+        'failed_login' => 'Failed login attempt',
+        'request_account' => 'Requested account',
+        'forgot_password_reset' => 'Reset password request',
+        'update_profile' => 'Updated profile',
+        'update_password' => 'Changed password',
+        'update_profile_photo' => 'Updated profile photo',
+        'create_leave_request' => 'Submitted leave request',
+        'update_leave_request' => 'Updated leave request',
+        'cancel_leave_request' => 'Cancelled leave request',
+        'approve_leave_request' => 'Approved leave request',
+        'reject_leave_request' => 'Rejected leave request',
+        'mark_resumed' => 'Marked resumed duty',
+        'record_leave_forfeiture' => 'Recorded leave forfeiture',
+        'create_worker' => 'Created staff account',
+        'update_user_access' => 'Updated user access',
+        'update_staff_profile' => 'Updated staff profile',
+        'admin_reset_staff_password' => 'Reset staff password',
+        'deactivate_staff_account' => 'Deactivated staff account',
+        'reactivate_staff_account' => 'Reactivated staff account',
+        'delete_staff_account' => 'Deleted staff account',
+        'approve_account_request' => 'Approved account request',
+        'reject_account_request' => 'Rejected account request',
+        'save_leave_type' => 'Saved leave type',
+        'save_holiday' => 'Saved holiday',
+        'sync_kenya_holidays' => 'Synced public holidays',
+        'delete_holiday' => 'Deleted holiday',
+    ];
+
+    if (isset($labels[$action])) {
+        return $labels[$action];
+    }
+
+    return str_replace('_', ' ', ucwords($action, '_'));
 }
 
 function status_badge_class(string $status): string
