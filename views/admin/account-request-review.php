@@ -42,6 +42,10 @@
                 <strong><?= e(designation_label($request['designation'] ?? null, $request['role'] ?? null)) ?></strong>
             </div>
             <div>
+                <span>Job group</span>
+                <strong><?= e($request['job_group'] ?? 'N/A') ?></strong>
+            </div>
+            <div>
                 <span>Department</span>
                 <strong><?= e($request['directorate_name'] ?? 'N/A') ?></strong>
             </div>

@@ -6,9 +6,9 @@ class LeaveRequest
     {
         $stmt = db()->prepare(
             'INSERT INTO leave_requests
-             (employee_id, leave_type_id, contact_number, start_date, end_date, days_requested, reason, handover_notes, attachment_path)
+             (employee_id, leave_type_id, contact_number, start_date, end_date, days_requested, reason, handover_notes, attachment_path, passport_photo_path)
              VALUES
-             (:employee_id, :leave_type_id, :contact_number, :start_date, :end_date, :days_requested, :reason, :handover_notes, :attachment_path)'
+             (:employee_id, :leave_type_id, :contact_number, :start_date, :end_date, :days_requested, :reason, :handover_notes, :attachment_path, :passport_photo_path)'
         );
 
         $stmt->execute([
@@ -21,6 +21,7 @@ class LeaveRequest
             'reason' => $data['reason'] ?? null,
             'handover_notes' => $data['handover_notes'] ?? null,
             'attachment_path' => $data['attachment_path'] ?? null,
+            'passport_photo_path' => $data['passport_photo_path'] ?? null,
         ]);
 
         return (int) db()->lastInsertId();
@@ -37,7 +38,8 @@ class LeaveRequest
                  days_requested = :days_requested,
                  reason = :reason,
                  handover_notes = :handover_notes,
-                 attachment_path = :attachment_path
+                 attachment_path = :attachment_path,
+                 passport_photo_path = :passport_photo_path
              WHERE id = :id'
         );
 
@@ -50,6 +52,7 @@ class LeaveRequest
             'reason' => $data['reason'] ?? null,
             'handover_notes' => $data['handover_notes'] ?? null,
             'attachment_path' => $data['attachment_path'] ?? null,
+            'passport_photo_path' => $data['passport_photo_path'] ?? null,
             'id' => $id,
         ]);
     }
@@ -58,7 +61,7 @@ class LeaveRequest
     {
         $stmt = db()->prepare(
             'SELECT lr.*, lt.name AS leave_type_name, lt.requires_balance,
-                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.supervisor_id,
+                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     ru.full_name AS resumed_by_name,
                     lf.id AS forfeiture_id, lf.days_forfeited, lf.payout_amount, lf.notes AS forfeiture_notes,
@@ -108,8 +111,14 @@ class LeaveRequest
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              WHERE lr.employee_id = ?
-               AND lr.status IN ('pending_supervisor', 'approved')
-               AND lr.end_date >= ?
+               AND (
+                   lr.status = 'pending_supervisor'
+                   OR (
+                       lr.status = 'approved'
+                       AND lr.resumed_at IS NULL
+                       AND lr.end_date >= ?
+                   )
+               )
              ORDER BY lr.submitted_at ASC, lr.id ASC
              LIMIT 1"
         );
@@ -124,7 +133,7 @@ class LeaveRequest
         $date = $date ?: date('Y-m-d');
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
-                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.supervisor_id,
+                    e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
@@ -152,7 +161,7 @@ class LeaveRequest
         $params = [];
         $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
         $sql = "SELECT lr.*, lt.name AS leave_type_name,
-                       e.staff_id, e.department_id,
+                       e.staff_id, e.department_id, e.job_group,
                        u.full_name AS employee_name,
                        u.email AS employee_email,
                        d.directorate_id, d.name AS department_name,
@@ -177,8 +186,8 @@ class LeaveRequest
 
         if ($search !== null && trim($search) !== '') {
             $term = '%' . trim($search) . '%';
-            $sql .= ' AND (u.full_name LIKE ? OR u.email LIKE ? OR e.staff_id LIKE ? OR lt.name LIKE ?)';
-            array_push($params, $term, $term, $term, $term);
+            $sql .= ' AND (u.full_name LIKE ? OR u.email LIKE ? OR e.staff_id LIKE ? OR e.job_group LIKE ? OR lt.name LIKE ?)';
+            array_push($params, $term, $term, $term, $term, $term);
         }
 
         $sql .= ' ORDER BY lr.submitted_at DESC';
@@ -197,7 +206,7 @@ class LeaveRequest
         }
 
         $sql = "SELECT lr.*, lt.name AS leave_type_name,
-                       e.staff_id, e.department_id, e.supervisor_id,
+                       e.staff_id, e.department_id, e.job_group, e.supervisor_id,
                        u.full_name AS employee_name,
                        d.directorate_id, d.name AS department_name,
                        dir.name AS directorate_name
@@ -240,7 +249,7 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
-                    e.staff_id, e.department_id, e.supervisor_id,
+                    e.staff_id, e.department_id, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
@@ -293,6 +302,7 @@ class LeaveRequest
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
+               AND lr.resumed_at IS NULL
                AND lr.start_date <= ?
                AND lr.end_date >= ?
                $scope
@@ -323,6 +333,7 @@ class LeaveRequest
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
+               AND lr.resumed_at IS NULL
                AND lr.end_date = ?
                $scope
              ORDER BY u.full_name ASC
@@ -352,6 +363,7 @@ class LeaveRequest
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
+               AND lr.resumed_at IS NULL
                AND lr.start_date > ?
                $scope
              ORDER BY lr.start_date ASC, u.full_name ASC
@@ -370,7 +382,7 @@ class LeaveRequest
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
                     e.user_id AS employee_user_id,
-                    e.staff_id, e.department_id, e.designation, e.supervisor_id,
+                    e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name,
@@ -533,7 +545,7 @@ class LeaveRequest
 
         $stmt = db()->prepare(
             "SELECT lr.*, lt.name AS leave_type_name,
-                    e.staff_id, e.department_id, e.designation,
+                    e.staff_id, e.department_id, e.designation, e.job_group,
                     u.full_name AS employee_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name

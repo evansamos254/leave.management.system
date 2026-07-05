@@ -2,7 +2,7 @@
 
 class AccessScopeService
 {
-    private const DEPARTMENT_SCOPED_ROLES = ['supervisor', 'director'];
+    private const DEPARTMENT_SCOPED_ROLES = ['supervisor', 'director', 'chief_officer'];
 
     public static function isDepartmentScoped(array $user): bool
     {

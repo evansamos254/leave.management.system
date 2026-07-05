@@ -53,7 +53,7 @@ class PdfService
         $this->fieldBox(298, 660, 247, 34, 'Payroll / ID number', $request['staff_id'] ?? 'N/A');
         $this->fieldBox(50, 626, 248, 34, 'Department', $request['directorate_name'] ?? 'N/A');
         $this->fieldBox(298, 626, 247, 34, 'Directorate', $request['department_name'] ?? 'N/A');
-        $this->fieldBox(50, 592, 248, 34, 'Email address', $request['employee_email'] ?? 'N/A');
+        $this->fieldBox(50, 592, 248, 34, 'Job group', $request['job_group'] ?? 'N/A');
         $this->fieldBox(298, 592, 247, 34, 'Contact number', format_kenyan_phone_number($request['contact_number'] ?? ($request['employee_phone'] ?? '')));
 
         $this->sectionBand(552, 'PART B: LEAVE DETAILS');
@@ -200,7 +200,7 @@ class PdfService
             }
 
             $this->reportTableRow(50, $rowY, $detailColumns, [
-                trim(($request['employee_name'] ?? 'N/A') . ' / ' . ($request['staff_id'] ?? 'N/A')),
+                trim(($request['employee_name'] ?? 'N/A') . ' / ' . ($request['staff_id'] ?? 'N/A') . ' / ' . ($request['job_group'] ?? 'N/A')),
                 trim(($request['directorate_name'] ?? 'N/A') . ' / ' . ($request['department_name'] ?? 'N/A')),
                 $request['leave_type_name'] ?? 'N/A',
                 format_date($request['start_date'] ?? null) . ' to ' . format_date($request['end_date'] ?? null),
@@ -393,14 +393,17 @@ class PdfService
     {
         $label = 'CONFIRMED BY HRO (DEPARTMENT OF PUBLIC SERVICE MANAGEMENT):';
         $name = $this->hroConfirmationName();
-        $lineStart = $x + $this->approxTextWidth($label, 8) + 8;
+        $lineStart = max(
+            $x + 330,
+            $x + $this->approxTextWidth($label, 8) + 24
+        );
         $lineEnd = 545;
 
         $this->textAt($x, $y + 3, $label, 8, 'F2');
         $this->dottedLine($lineStart, $y + 1.5, $lineEnd);
 
         if ($name !== '') {
-            $this->textAt($lineStart + 4, $y + 3, $name, 8, 'F1');
+            $this->textAt($lineStart + 4, $y + 3, $name, 7, 'F1');
         }
     }
 

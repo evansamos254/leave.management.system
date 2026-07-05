@@ -28,7 +28,7 @@ CREATE TABLE users (
   national_id VARCHAR(50) NULL UNIQUE,
   gender ENUM('male', 'female') NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'employee', 'supervisor', 'hr', 'director') NOT NULL DEFAULT 'employee',
+  role ENUM('admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer') NOT NULL DEFAULT 'employee',
   phone VARCHAR(30) NULL,
   profile_photo_path VARCHAR(255) NULL,
   employment_document_path VARCHAR(255) NULL,
@@ -63,6 +63,7 @@ CREATE TABLE employees (
   staff_id VARCHAR(50) NOT NULL UNIQUE,
   department_id INT UNSIGNED NULL,
   designation VARCHAR(120) NULL,
+  job_group VARCHAR(120) NULL,
   supervisor_id INT UNSIGNED NULL,
   employment_date DATE NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -124,6 +125,7 @@ CREATE TABLE leave_requests (
   reason TEXT NULL,
   handover_notes TEXT NULL,
   attachment_path VARCHAR(255) NULL,
+  passport_photo_path VARCHAR(255) NULL,
   status ENUM(
     'pending_supervisor',
     'approved',
@@ -284,4 +286,6 @@ VALUES
   ('Paternity Leave', 'male', 14.00, 1, 0, NULL, 1, 1),
   ('Compassionate Leave', 'any', 5.00, 1, 1, NULL, 1, 1),
   ('Study Leave', 'any', 0.00, 0, 0, NULL, 1, 1),
+  ('Sport Leave', 'any', 0.00, 0, 0, NULL, 1, 1),
+  ('Terminal Leave', 'any', 30.00, 1, 0, NULL, 1, 1),
   ('Unpaid Leave', 'any', 0.00, 0, 0, NULL, 0, 1);

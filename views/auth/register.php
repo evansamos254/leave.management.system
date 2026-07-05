@@ -109,6 +109,19 @@
                     <?php if ($error = field_error('designation')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                 </label>
                 <label>
+                    <span>Job group</span>
+                    <select name="job_group" class="<?= has_field_error('job_group') ? 'is-invalid' : '' ?>" required>
+                        <option value="">Select job group</option>
+                        <?php foreach (job_group_options() as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= old('job_group') === $value ? 'selected' : '' ?>>
+                                <?= e($label) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($error = field_error('job_group')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                    <small>Select the payroll job group used to identify payment level.</small>
+                </label>
+                <label>
                     <span>Employment date</span>
                     <input type="date" name="employment_date" value="<?= e(old('employment_date')) ?>" class="<?= has_field_error('employment_date') ? 'is-invalid' : '' ?>" max="<?= e(date('Y-m-d')) ?>">
                     <?php if ($error = field_error('employment_date')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>

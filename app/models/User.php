@@ -5,7 +5,7 @@ class User
     public static function find(int $id): ?array
     {
         $stmt = db()->prepare(
-            'SELECT u.*, e.id AS employee_id, e.staff_id, e.department_id, e.designation, e.supervisor_id, e.employment_date,
+            'SELECT u.*, e.id AS employee_id, e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id, e.employment_date,
                     d.directorate_id, d.name AS department_name, dir.name AS directorate_name
              FROM users u
              LEFT JOIN employees e ON e.user_id = u.id
@@ -176,7 +176,7 @@ class User
         $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
         $sql =
             'SELECT u.id, u.full_name, u.email, u.national_id, u.gender, u.role, u.phone, u.profile_photo_path, u.employment_document_path, u.status, u.created_at,
-                    e.id AS employee_id, e.staff_id, e.department_id, e.designation, e.supervisor_id, e.employment_date,
+                    e.id AS employee_id, e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id, e.employment_date,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name,
                     su.full_name AS supervisor_name
@@ -225,7 +225,7 @@ class User
         $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
         $stmt = db()->prepare(
             "SELECT u.id, u.full_name, u.email, u.national_id, u.gender, u.phone, u.profile_photo_path, u.employment_document_path, u.role, u.status, u.created_at,
-                    e.id AS employee_id, e.staff_id, e.designation, e.employment_date,
+                    e.id AS employee_id, e.staff_id, e.designation, e.job_group, e.employment_date,
                     e.department_id,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name

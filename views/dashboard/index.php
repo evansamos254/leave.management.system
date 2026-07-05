@@ -40,6 +40,10 @@
             <strong><?= (int) $stats['directors'] ?></strong>
         </article>
         <article class="stat-card">
+            <span>Chief Officers</span>
+            <strong><?= (int) $stats['chief_officers'] ?></strong>
+        </article>
+        <article class="stat-card">
             <span>Departments</span>
             <strong><?= (int) $stats['departments'] ?></strong>
         </article>

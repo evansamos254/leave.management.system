@@ -641,7 +641,16 @@ td small { display: block; color: var(--muted); }
 .auth-footer a,
 .auth-link-row a { color: var(--blue); font-weight: 600; }
 
-.auth-link-row { display: flex; justify-content: center; margin-top: 14px; }
+.auth-link-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.auth-link-row form { margin: 0; }
 
 .system-footer {
     color: var(--muted);
@@ -1155,19 +1164,24 @@ input[readonly] {
     color: var(--green-deep);
 }
 
-HEAD
 .auth-link-row a,
-.auth-link-row button,
+.auth-link-row .link-button,
 .auth-footer a {
     color: var(--busia-deep-green);
     font-weight: 800;
 }
 
-.auth-link-row button {
+.auth-note {
+    margin: 12px 0 0;
+    text-align: center;
+}
+
+.link-button {
     border: 0;
     background: transparent;
     padding: 0;
     cursor: pointer;
+    font: inherit;
 }
 
 .system-footer {
@@ -1343,6 +1357,138 @@ HEAD
 .check-label input[type="checkbox"] { width: auto; cursor: pointer; }
 
 /* ── Leave-types table ────────────────── */
+
+.leave-policy-board {
+    margin-bottom: 20px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.policy-board-title {
+    margin-bottom: 12px;
+}
+
+.policy-board-title h2 {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--black);
+    letter-spacing: 0;
+    margin: 0;
+}
+
+.leave-policy-board .muted {
+    padding-top: 4px;
+    max-width: none;
+    text-align: left;
+}
+
+.leave-policy-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--sans);
+}
+
+.leave-policy-table thead th {
+    background: transparent;
+    padding: 0 8px 10px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--black);
+    font-weight: 500;
+}
+
+.leave-policy-table th,
+.leave-policy-table td {
+    padding-left: 8px;
+    padding-right: 8px;
+    vertical-align: middle;
+}
+
+.leave-policy-table tbody tr:hover {
+    background: transparent;
+}
+
+.leave-policy-table td {
+    padding-top: 13px;
+    padding-bottom: 13px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(25, 35, 52, 0.08);
+}
+
+.leave-policy-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.leave-policy-table td strong {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.policy-note {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.passport-photo-preview {
+    display: block;
+    width: 140px;
+    max-width: 100%;
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    object-fit: cover;
+}
+
+.policy-maintenance {
+    margin-top: 14px;
+}
+
+.policy-maintenance > .policy-maintenance-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    list-style: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: none;
+}
+
+.policy-maintenance-summary .eyebrow {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: none;
+}
+
+.policy-maintenance-summary strong {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--black);
+}
+
+.policy-maintenance > .policy-maintenance-summary::-webkit-details-marker {
+    display: none;
+}
+
+.policy-maintenance[open] > .policy-maintenance-summary {
+    margin-bottom: 14px;
+}
+
+.policy-maintenance-grid {
+    margin-top: 4px;
+}
 
 .leave-types-table .table-input {
     width: 100%;

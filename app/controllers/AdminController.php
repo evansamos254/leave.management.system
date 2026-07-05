@@ -2,11 +2,12 @@
 
 class AdminController
 {
-    private array $roles = ['admin', 'employee', 'supervisor', 'hr', 'director'];
-    private array $workerRoles = ['employee', 'supervisor', 'hr', 'director'];
+    private array $roles = ['admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer'];
+    private array $workerRoles = ['employee', 'supervisor', 'hr', 'director', 'chief_officer'];
     private array $statuses = ['pending', 'active', 'inactive', 'rejected'];
     private array $profileManagers = ['admin', 'supervisor', 'hr', 'director'];
     private array $monitoringRoles = ['admin', 'supervisor', 'hr', 'director'];
+    private array $departmentViewRoles = ['admin', 'supervisor', 'hr', 'director', 'chief_officer'];
 
     public function users(): void
     {
@@ -24,7 +25,7 @@ class AdminController
 
     public function leaveRequests(): void
     {
-        require_role($this->monitoringRoles);
+        require_role($this->departmentViewRoles);
         $user = current_user();
 
         $status = trim($_GET['status'] ?? '');
@@ -252,6 +253,7 @@ class AdminController
             'directorate_id' => (int) ($_POST['directorate_id'] ?? 0),
             'department_id' => (int) ($_POST['department_id'] ?? 0),
             'designation' => trim($_POST['designation'] ?? ''),
+            'job_group' => normalize_job_group($_POST['job_group'] ?? null),
             'employment_date' => trim($_POST['employment_date'] ?? ''),
             'role' => trim($_POST['role'] ?? 'employee'),
             'supervisor_id' => ($_POST['supervisor_id'] ?? '') !== '' ? (int) $_POST['supervisor_id'] : null,
@@ -268,7 +270,7 @@ class AdminController
         $currentUser = current_user();
 
         if ($currentUser['role'] !== 'admin' && $data['role'] !== 'employee') {
-            $errors[] = 'Only the admin can create Supervisor, HR, or Director accounts.';
+            $errors[] = 'Only the admin can create Supervisor, HR, Director, or Chief Officer accounts.';
         }
 
         if ($errors) {
@@ -297,6 +299,7 @@ class AdminController
                 'staff_id' => $data['staff_id'],
                 'department_id' => $data['department_id'] ?: null,
                 'designation' => $data['designation'],
+                'job_group' => $data['job_group'],
                 'supervisor_id' => $data['supervisor_id'],
                 'employment_date' => $data['employment_date'],
             ]);
@@ -364,9 +367,9 @@ class AdminController
             redirect('admin/users');
         }
 
-        $privilegedRoles = ['supervisor', 'hr', 'director'];
+        $privilegedRoles = ['supervisor', 'hr', 'director', 'chief_officer'];
         if ($currentUser['role'] !== 'admin' && (in_array($targetUser['role'], $privilegedRoles, true) || in_array($role, $privilegedRoles, true))) {
-            set_flash('error', 'Only the admin can update Supervisor, HR, or Director access.');
+            set_flash('error', 'Only the admin can update Supervisor, HR, Director, or Chief Officer access.');
             redirect('admin/users');
         }
 
@@ -437,6 +440,7 @@ class AdminController
             'directorate_id' => (int) ($_POST['directorate_id'] ?? 0),
             'department_id' => (int) ($_POST['department_id'] ?? 0),
             'designation' => trim($_POST['designation'] ?? ''),
+            'job_group' => normalize_job_group($_POST['job_group'] ?? null),
             'employment_date' => trim($_POST['employment_date'] ?? ''),
             'role' => trim($_POST['role'] ?? $targetUser['role']),
             'status' => trim($_POST['status'] ?? $targetUser['status']),
@@ -466,6 +470,7 @@ class AdminController
                 'staff_id' => $data['staff_id'],
                 'department_id' => $data['department_id'] ?: null,
                 'designation' => $data['designation'],
+                'job_group' => $data['job_group'],
                 'supervisor_id' => $data['supervisor_id'],
                 'employment_date' => $data['employment_date'],
             ]);
@@ -743,6 +748,10 @@ class AdminController
             $errors[] = 'Designation is required.';
         }
 
+        if (!is_valid_job_group($data['job_group'])) {
+            $errors[] = 'Please select a valid job group.';
+        }
+
         if (!in_array($data['role'], $this->workerRoles, true)) {
             $errors[] = 'Please select a valid staff role.';
         }
@@ -840,6 +849,10 @@ class AdminController
             $errors[] = 'Designation is required.';
         }
 
+        if (!is_valid_job_group($data['job_group'])) {
+            $errors[] = 'Please select a valid job group.';
+        }
+
         if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {
             $errors[] = 'Employment date is invalid or cannot be in the future.';
         }
@@ -869,14 +882,23 @@ class AdminController
 
         if (!empty($user['employee_id'])) {
             $stmt = db()->prepare(
-                "SELECT attachment_path
+                "SELECT attachment_path, passport_photo_path
                  FROM leave_requests
-                 WHERE employee_id = ? AND attachment_path IS NOT NULL AND attachment_path <> ''"
+                 WHERE employee_id = ? AND (
+                     (attachment_path IS NOT NULL AND attachment_path <> '')
+                     OR (passport_photo_path IS NOT NULL AND passport_photo_path <> '')
+                 )"
             );
             $stmt->execute([(int) $user['employee_id']]);
 
             foreach ($stmt->fetchAll() as $request) {
-                $files[] = app_config('upload_dir') . '/' . basename((string) $request['attachment_path']);
+                if (!empty($request['attachment_path'])) {
+                    $files[] = app_config('upload_dir') . '/' . basename((string) $request['attachment_path']);
+                }
+
+                if (!empty($request['passport_photo_path'])) {
+                    $files[] = app_config('leave_passport_photo_dir') . '/' . basename((string) $request['passport_photo_path']);
+                }
             }
         }
 

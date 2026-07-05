@@ -53,6 +53,10 @@
                 <button class="btn btn-primary btn-block" type="submit">Login</button>
             </form>
 
+            <p class="muted auth-note">
+                A verification code will be sent to your registered email before access is granted.
+            </p>
+
             <div class="auth-link-row">
                 <a href="<?= e(url('forgot-password')) ?>">Forgot password?</a>
             </div>

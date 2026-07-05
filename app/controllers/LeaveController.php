@@ -116,8 +116,10 @@ class LeaveController
                 || ($leaveType['attachment_after_days'] !== null && $days >= (float) $leaveType['attachment_after_days']));
 
         $attachmentPath = null;
+        $passportPhotoPath = null;
         if (!$errors) {
             $attachmentPath = $this->handleUpload($requiresAttachment, $errors);
+            $passportPhotoPath = $this->handlePassportPhotoUpload($errors);
         }
 
         if ($errors) {
@@ -139,6 +141,7 @@ class LeaveController
                 'reason' => $reason,
                 'handover_notes' => $handoverNotes,
                 'attachment_path' => $attachmentPath,
+                'passport_photo_path' => $passportPhotoPath,
             ]);
 
             ApprovalWorkflowService::createSteps($leaveRequestId);
@@ -279,8 +282,10 @@ class LeaveController
                 || ($leaveType['attachment_after_days'] !== null && $days >= (float) $leaveType['attachment_after_days']));
 
         $attachmentPath = $request['attachment_path'] ?: null;
+        $passportPhotoPath = $request['passport_photo_path'] ?: null;
         if (!$errors) {
             $attachmentPath = $this->handleUpload($requiresAttachment, $errors, $attachmentPath);
+            $passportPhotoPath = $this->handlePassportPhotoUpload($errors, $passportPhotoPath);
         }
 
         if ($errors) {
@@ -301,6 +306,7 @@ class LeaveController
                 'reason' => $reason,
                 'handover_notes' => $handoverNotes,
                 'attachment_path' => $attachmentPath,
+                'passport_photo_path' => $passportPhotoPath,
             ]);
 
             AuditService::record('update_leave_request', 'leave_requests', $id);
@@ -315,6 +321,13 @@ class LeaveController
 
         if ($attachmentPath && $request['attachment_path'] && $attachmentPath !== $request['attachment_path']) {
             $oldPath = app_config('upload_dir') . '/' . basename($request['attachment_path']);
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        if ($passportPhotoPath && $request['passport_photo_path'] && $passportPhotoPath !== $request['passport_photo_path']) {
+            $oldPath = app_config('leave_passport_photo_dir') . '/' . basename($request['passport_photo_path']);
             if (is_file($oldPath)) {
                 @unlink($oldPath);
             }
@@ -476,32 +489,67 @@ class LeaveController
         $resumptionNotes = $notes !== ''
             ? $notes
             : ($selfReported ? 'Self-reported from the dashboard.' : null);
+        $resumptionDate = date('Y-m-d');
+        $carryoverDays = 0.0;
 
-        LeaveRequest::markResumed($id, (int) $actor['id'], $resumptionNotes);
+        try {
+            db()->beginTransaction();
+
+            LeaveRequest::markResumed($id, (int) $actor['id'], $resumptionNotes);
+            $carryoverDays = $this->restoreUnusedLeaveBalance($request, $resumptionDate);
+
+            AuditService::record(
+                $selfReported ? 'mark_leave_resumed_self' : 'mark_leave_resumed',
+                'leave_requests',
+                $id
+            );
+
+            db()->commit();
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            app_log($throwable);
+            set_flash('error', 'Leave request could not be updated.');
+            if ($selfReported) {
+                redirect('dashboard');
+            }
+
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
 
         if ($selfReported) {
-            AuditService::record('mark_leave_resumed_self', 'leave_requests', $id);
-            $this->notifyReturnFromLeave($request, $actor);
+            $this->notifyReturnFromLeave($request, $actor, $carryoverDays);
+            $carryoverMessage = $carryoverDays > 0
+                ? ' ' . format_days($carryoverDays) . ' working day(s) were carried back to your leave balance.'
+                : '';
             NotificationService::create(
                 (int) $request['employee_user_id'],
                 'Return from leave sent',
-                'Your supervisor and HR have been notified that you are back from leave.',
+                'Your supervisor and HR have been notified that you are back from leave.' . $carryoverMessage,
                 url('leave/view') . '&id=' . $id
             );
 
-            set_flash('success', 'Your return from leave has been sent to your supervisor and HR.');
+            set_flash(
+                'success',
+                'Your return from leave has been sent to your supervisor and HR.'
+                . $carryoverMessage
+            );
             redirect('dashboard');
         }
 
-        AuditService::record('mark_leave_resumed', 'leave_requests', $id);
+        $carryoverMessage = $carryoverDays > 0
+            ? ' ' . format_days($carryoverDays) . ' working day(s) were carried back to the staff balance.'
+            : '';
         NotificationService::create(
             (int) $request['employee_user_id'],
             'Return from leave confirmed',
-            'Your return from leave has been recorded.',
+            'Your return from leave has been recorded.' . $carryoverMessage,
             url('leave/view') . '&id=' . $id
         );
 
-        set_flash('success', 'Staff return from leave recorded.');
+        set_flash('success', 'Staff return from leave recorded.' . $carryoverMessage);
         header('Location: ' . url('leave/view') . '&id=' . $id);
         exit;
     }
@@ -628,6 +676,33 @@ class LeaveController
         readfile($file);
     }
 
+    public function passportPhoto(): void
+    {
+        require_auth();
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $request = LeaveRequest::find($id);
+
+        if (!$request || !$request['passport_photo_path'] || !$this->canView($request)) {
+            http_response_code(404);
+            echo 'Passport photo not found.';
+            return;
+        }
+
+        $file = app_config('leave_passport_photo_dir') . '/' . basename($request['passport_photo_path']);
+        if (!is_file($file)) {
+            http_response_code(404);
+            echo 'Passport photo file missing.';
+            return;
+        }
+
+        $mime = mime_content_type($file) ?: 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: inline; filename="' . basename($file) . '"');
+        header('Content-Length: ' . filesize($file));
+        readfile($file);
+    }
+
     private function validDate(string $date): bool
     {
         $parsed = DateTime::createFromFormat('Y-m-d', $date);
@@ -714,6 +789,49 @@ class LeaveController
 
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
             $errors['attachment'] = 'Could not save the attachment.';
+            return null;
+        }
+
+        return $filename;
+    }
+
+    private function handlePassportPhotoUpload(array &$errors, ?string $existingPhoto = null): ?string
+    {
+        $file = $_FILES['passport_photo'] ?? null;
+
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            if (!$existingPhoto) {
+                $errors['passport_photo'] = 'Passport photo is required for every leave request.';
+            }
+
+            return $existingPhoto;
+        }
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $errors['passport_photo'] = 'Passport photo upload failed.';
+            return null;
+        }
+
+        if ($file['size'] > app_config('leave_passport_photo_max_size')) {
+            $errors['passport_photo'] = 'Passport photo must not exceed 10 MB.';
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($extension, app_config('leave_passport_photo_extensions'), true) || !uploaded_file_is_image($file)) {
+            $errors['passport_photo'] = 'Passport photo must be a JPG, PNG, or WebP image.';
+            return null;
+        }
+
+        $filename = date('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $destination = app_config('leave_passport_photo_dir') . '/' . $filename;
+
+        if (!is_dir(app_config('leave_passport_photo_dir'))) {
+            mkdir(app_config('leave_passport_photo_dir'), 0775, true);
+        }
+
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            $errors['passport_photo'] = 'Could not save the passport photo.';
             return null;
         }
 
@@ -847,7 +965,27 @@ class LeaveController
             : ' Check outbound notification logs.';
     }
 
-    private function notifyReturnFromLeave(array $request, array $actor): void
+    private function restoreUnusedLeaveBalance(array $request, string $resumptionDate): float
+    {
+        $nextBusinessDate = LeaveBalanceService::returnDateAfter($resumptionDate);
+        if (strtotime((string) $request['end_date']) < strtotime($nextBusinessDate)) {
+            return 0.0;
+        }
+
+        $unusedDays = (float) LeaveBalanceService::businessDays($nextBusinessDate, (string) $request['end_date']);
+        if ($unusedDays <= 0) {
+            return 0.0;
+        }
+
+        return LeaveBalanceService::restore(
+            (int) $request['employee_id'],
+            (int) $request['leave_type_id'],
+            $unusedDays,
+            financial_year_key($request['start_date'] ?? null)
+        );
+    }
+
+    private function notifyReturnFromLeave(array $request, array $actor, float $carryoverDays = 0.0): void
     {
         $link = url('leave/view') . '&id=' . (int) $request['id'];
         $title = 'Staff reported back from leave';
@@ -860,6 +998,10 @@ class LeaveController
             . '. Report-back date: '
             . format_date(LeaveBalanceService::returnDateAfter((string) $request['end_date']))
             . '.';
+
+        if ($carryoverDays > 0) {
+            $message .= ' ' . format_days($carryoverDays) . ' working day(s) were carried back to the leave balance.';
+        }
 
         $notifiedSupervisor = false;
         if (!empty($request['supervisor_id'])) {

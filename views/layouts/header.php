@@ -10,6 +10,8 @@ $authNameParts = $authUser ? name_parts($authUser['full_name'] ?? '') : ['first_
 $isAuthHrOffice = $authUser && ($authUser['role'] ?? '') === 'hr' && empty($authUser['department_name']);
 $authDirectorateLabel = $isAuthHrOffice ? 'HR Office' : ($authUser['directorate_name'] ?? 'Not assigned');
 $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['department_name'] ?? 'Not assigned');
+$canSeeApprovals = $authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true);
+$canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director', 'chief_officer'], true);
 ?>
 <!doctype html>
 <html lang="en">
@@ -71,7 +73,7 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
             </details>
             <?php endif; ?>
 
-            <?php if ($authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true)): ?>
+            <?php if ($canSeeApprovals): ?>
             <details class="nav-section" <?= in_array($activeRoute, ['approvals', 'leave/calendar'], true) ? 'open' : '' ?>>
                 <summary class="nav-group">Approvals</summary>
                 <div class="nav-sub">
@@ -83,8 +85,8 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
             </details>
             <?php endif; ?>
 
-            <?php if ($authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true)): ?>
-            <?php $adminOpen = (in_array($activeRoute, ['workers', 'workers/create', 'admin/users', 'admin/leave-requests', 'reports', 'admin/activity', 'admin/leave-types', 'admin/holidays'], true) || str_starts_with($activeRoute, 'admin/')) ? 'open' : ''; ?>
+            <?php if ($canSeeDepartmentTools): ?>
+            <?php $adminOpen = (in_array($activeRoute, ['workers', 'workers/create', 'admin/users', 'admin/leave-requests', 'reports', 'admin/activity', 'admin/leave-types', 'admin/holidays', 'leave/calendar'], true) || str_starts_with($activeRoute, 'admin/')) ? 'open' : ''; ?>
             <details class="nav-section" <?= $adminOpen ?>>
                 <summary class="nav-group">Administration</summary>
                 <div class="nav-sub">
@@ -95,6 +97,9 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                     <a class="<?= str_starts_with($activeRoute, 'admin/account-requests') ? 'active' : '' ?>" href="<?= e(url('admin/account-requests')) ?>">Account Requests</a>
                     <a class="<?= $activeRoute === 'admin/leave-requests' ? 'active' : '' ?>" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
                     <a class="<?= $activeRoute === 'reports' ? 'active' : '' ?>" href="<?= e(url('reports')) ?>">Reports</a>
+                    <?php if ($authUser['role'] === 'chief_officer'): ?>
+                        <a class="<?= $activeRoute === 'leave/calendar' ? 'active' : '' ?>" href="<?= e(url('leave/calendar')) ?>">Leave Calendar</a>
+                    <?php endif; ?>
                     <?php if (in_array($authUser['role'], ['admin', 'hr'], true)): ?>
                         <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Logs</a>
                     <?php endif; ?>
@@ -280,6 +285,10 @@ $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['de
                                 <div>
                                     <span>Designation</span>
                                     <strong><?= e(designation_label($authUser['designation'] ?? null, $authUser['role'] ?? null)) ?></strong>
+                                </div>
+                                <div>
+                                    <span>Job group</span>
+                                    <strong><?= e($authUser['job_group'] ?? 'N/A') ?></strong>
                                 </div>
                             </div>
                             <form class="account-logout-form" method="post" action="<?= e(url('logout')) ?>">

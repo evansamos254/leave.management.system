@@ -20,6 +20,10 @@
                 <strong><?= e($request['staff_id']) ?></strong>
             </div>
             <div>
+                <span>Job group</span>
+                <strong><?= e($request['job_group'] ?? 'N/A') ?></strong>
+            </div>
+            <div>
                 <span>Department</span>
                 <strong><?= e($request['directorate_name'] ?? 'N/A') ?></strong>
             </div>
@@ -40,6 +44,16 @@
                 <strong><?= e(format_kenyan_phone_number($request['contact_number'] ?? '')) ?: 'N/A' ?></strong>
             </div>
         </div>
+
+        <?php if (!empty($request['passport_photo_path'])): ?>
+            <div class="note-box">
+                <span>Passport Photo</span>
+                <p>Attached to this leave request.</p>
+                <a href="<?= e(url('leave/passport-photo')) ?>&id=<?= (int) $request['id'] ?>" target="_blank" rel="noopener">
+                    <img class="passport-photo-preview" src="<?= e(url('leave/passport-photo')) ?>&id=<?= (int) $request['id'] ?>" alt="Passport photo preview">
+                </a>
+            </div>
+        <?php endif; ?>
 
         <?php if ($request['reason']): ?>
             <div class="note-box">

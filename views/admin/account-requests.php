@@ -37,6 +37,7 @@
                         <td>
                             <?= e($request['staff_id']) ?>
                             <small><?= e(designation_label($request['designation'] ?? null, $request['role'] ?? null)) ?></small>
+                            <small>Job group: <?= e($request['job_group'] ?? 'N/A') ?></small>
                         </td>
                         <td><?= e($request['directorate_name'] ?? 'N/A') ?></td>
                         <td><?= e($request['department_name'] ?? 'N/A') ?></td>

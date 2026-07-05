@@ -1,7 +1,7 @@
 <section class="panel">
     <?php
     $viewer = current_user();
-    $privilegedRoles = ['admin', 'supervisor', 'hr', 'director'];
+    $privilegedRoles = ['admin', 'supervisor', 'hr', 'director', 'chief_officer'];
     ?>
     <div class="panel-heading">
         <div>
@@ -46,6 +46,7 @@
                     <td>
                         <?= e($account['staff_id'] ?? 'N/A') ?>
                         <small><?= e(designation_label($account['designation'] ?? null, $account['role'] ?? null)) ?></small>
+                        <small>Job group: <?= e($account['job_group'] ?? 'N/A') ?></small>
                     </td>
                     <td><?= e($directorateLabel) ?></td>
                     <td><?= e($departmentLabel) ?></td>

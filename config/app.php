@@ -17,6 +17,9 @@ return [
     'profile_photo_dir' => dirname(__DIR__) . '/uploads/profile-photos',
     'profile_photo_max_size' => 10 * 1024 * 1024,
     'profile_photo_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
+    'leave_passport_photo_dir' => dirname(__DIR__) . '/uploads/leave-passport-photos',
+    'leave_passport_photo_max_size' => 10 * 1024 * 1024,
+    'leave_passport_photo_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
     'employment_document_dir' => dirname(__DIR__) . '/uploads/employment-documents',
     'employment_document_max_size' => 10 * 1024 * 1024,
     'employment_document_extensions' => ['pdf'],
@@ -28,6 +31,13 @@ return [
         'max_login_attempts' => 3,
         'login_lockout_minutes' => 15,
         'session_timeout_minutes' => 30,
+        'login_otp' => [
+            'enabled' => true,
+            'digits' => 6,
+            'expiry_minutes' => 5,
+            'max_attempts' => 5,
+            'resend_cooldown_seconds' => 30,
+        ],
     ],
     'notifications' => [
         'email' => [

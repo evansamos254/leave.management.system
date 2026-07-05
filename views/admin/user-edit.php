@@ -101,6 +101,18 @@
             <input type="text" name="designation" value="<?= e(old('designation', designation_form_value($account['designation'] ?? null, $account['role'] ?? null))) ?>" required>
         </label>
         <label>
+            <span>Job group</span>
+            <select name="job_group" required>
+                <option value="">Select job group</option>
+                <?php foreach (job_group_options() as $value => $label): ?>
+                    <option value="<?= e($value) ?>" <?= old('job_group', $account['job_group'] ?? '') === $value ? 'selected' : '' ?>>
+                        <?= e($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <small>Select the payroll job group used to identify payment level.</small>
+        </label>
+        <label>
             <span>Employment date</span>
             <input type="date" name="employment_date" value="<?= e(old('employment_date', $account['employment_date'] ?? '')) ?>" max="<?= e(date('Y-m-d')) ?>">
             <small>Select today or a past date.</small>

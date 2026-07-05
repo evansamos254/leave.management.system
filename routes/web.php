@@ -7,6 +7,11 @@ try {
         'login' => is_post()
             ? (new AuthController())->login()
             : (new AuthController())->showLogin(),
+        'login/otp' => is_post()
+            ? (new AuthController())->verifyOtp()
+            : (new AuthController())->showOtp(),
+        'login/otp/resend' => (new AuthController())->resendOtp(),
+        'login/otp/cancel' => (new AuthController())->cancelOtp(),
         'forgot-password' => is_post()
             ? (new AuthController())->forgotPassword()
             : (new AuthController())->showForgotPassword(),
@@ -45,6 +50,7 @@ try {
             ? (new LeaveController())->forfeit()
             : (new LeaveController())->history(),
         'leave/attachment' => (new LeaveController())->attachment(),
+        'leave/passport-photo' => (new LeaveController())->passportPhoto(),
         'approvals' => (new ApprovalController())->index(),
         'approvals/action' => (new ApprovalController())->action(),
         'workers' => (new AdminController())->workers(),

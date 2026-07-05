@@ -109,7 +109,10 @@
                 <tbody>
                 <?php foreach ($pending as $request): ?>
                     <tr>
-                        <td><?= e($request['employee_name']) ?></td>
+                        <td>
+                            <strong><?= e($request['employee_name']) ?></strong>
+                            <small>Job group: <?= e($request['job_group'] ?? 'N/A') ?></small>
+                        </td>
                         <td><?= e($request['leave_type_name']) ?></td>
                         <td><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></td>
                         <td><span class="badge warning"><?= e(status_label($request['status'])) ?></span></td>

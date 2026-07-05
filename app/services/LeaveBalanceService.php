@@ -181,6 +181,49 @@ class LeaveBalanceService
         $stmt->execute([$days, $employeeId, $leaveTypeId, $year]);
     }
 
+    public static function restore(int $employeeId, int $leaveTypeId, float $days, ?int $year = null): float
+    {
+        self::migrateLegacyBalanceYears();
+        $year = $year ?? financial_year_key();
+        $type = LeaveType::find($leaveTypeId);
+        $days = round(max(0.0, $days), 2);
+
+        if ($days <= 0 || !$type || !LeaveType::isBalanceTracked($type)) {
+            return 0.0;
+        }
+
+        self::ensureBalances($employeeId, $year);
+
+        $stmt = db()->prepare(
+            'SELECT used_days
+             FROM leave_balances
+             WHERE employee_id = ? AND leave_type_id = ? AND year = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$employeeId, $leaveTypeId, $year]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return 0.0;
+        }
+
+        $usedDays = max(0.0, (float) ($row['used_days'] ?? 0));
+        $restoredDays = min($days, $usedDays);
+
+        if ($restoredDays <= 0) {
+            return 0.0;
+        }
+
+        $stmt = db()->prepare(
+            'UPDATE leave_balances
+             SET used_days = GREATEST(used_days - ?, 0)
+             WHERE employee_id = ? AND leave_type_id = ? AND year = ?'
+        );
+        $stmt->execute([$restoredDays, $employeeId, $leaveTypeId, $year]);
+
+        return $restoredDays;
+    }
+
     private static function migrateLegacyBalanceYears(): void
     {
         if (self::$legacyBalanceYearsMigrated) {

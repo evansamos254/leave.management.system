@@ -81,6 +81,24 @@ class ExternalNotificationService
         );
     }
 
+    public static function loginOtp(array $user, string $code, int $expiresMinutes): bool
+    {
+        $name = $user['full_name'] ?? 'Staff member';
+        $expiresMinutes = max(1, $expiresMinutes);
+
+        $message = 'Hello ' . $name . ',' . PHP_EOL . PHP_EOL
+            . 'Your login verification code is ' . $code . '.' . PHP_EOL
+            . 'This code will expire in ' . $expiresMinutes . ' minute(s).' . PHP_EOL . PHP_EOL
+            . 'If you did not try to sign in, please contact ICT immediately.';
+
+        return self::sendEmail(
+            (string) ($user['email'] ?? ''),
+            'Leave system login verification code',
+            $message,
+            'Login verification code sent.'
+        );
+    }
+
     public static function leaveRequestSubmitted(array $request, string $nextRole = 'supervisor'): bool
     {
         return self::sendLeaveEmail(

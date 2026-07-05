@@ -5,8 +5,8 @@ class Employee
     public static function create(array $data): int
     {
         $stmt = db()->prepare(
-            'INSERT INTO employees (user_id, staff_id, department_id, designation, supervisor_id, employment_date)
-             VALUES (:user_id, :staff_id, :department_id, :designation, :supervisor_id, :employment_date)'
+            'INSERT INTO employees (user_id, staff_id, department_id, designation, job_group, supervisor_id, employment_date)
+             VALUES (:user_id, :staff_id, :department_id, :designation, :job_group, :supervisor_id, :employment_date)'
         );
 
         $stmt->execute([
@@ -14,6 +14,7 @@ class Employee
             'staff_id' => $data['staff_id'],
             'department_id' => $data['department_id'] ?? null,
             'designation' => $data['designation'] ?? null,
+            'job_group' => normalize_job_group($data['job_group'] ?? null),
             'supervisor_id' => $data['supervisor_id'] ?? null,
             'employment_date' => $data['employment_date'] ?: null,
         ]);
@@ -94,6 +95,7 @@ class Employee
              SET staff_id = :staff_id,
                  department_id = :department_id,
                  designation = :designation,
+                 job_group = :job_group,
                  supervisor_id = :supervisor_id,
                  employment_date = :employment_date
              WHERE id = :id'
@@ -103,6 +105,7 @@ class Employee
             'staff_id' => $data['staff_id'],
             'department_id' => $data['department_id'] ?? null,
             'designation' => $data['designation'] ?? null,
+            'job_group' => normalize_job_group($data['job_group'] ?? null),
             'supervisor_id' => $data['supervisor_id'] ?? null,
             'employment_date' => ($data['employment_date'] ?? '') !== '' ? $data['employment_date'] : null,
             'id' => $employeeId,
@@ -113,7 +116,7 @@ class Employee
     {
         $stmt = db()->query(
             "SELECT u.id, u.full_name, u.email, u.national_id, u.gender, u.role, u.phone, u.status, u.created_at,
-                    e.id AS employee_id, e.staff_id, e.designation, e.supervisor_id,
+                    e.id AS employee_id, e.staff_id, e.designation, e.job_group, e.supervisor_id,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name,
                     su.full_name AS supervisor_name

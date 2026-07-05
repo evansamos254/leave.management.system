@@ -4,7 +4,7 @@ class ReportsController
 {
     public function index(): void
     {
-        require_role(['admin', 'hr', 'director', 'supervisor']);
+        require_role(['admin', 'hr', 'director', 'supervisor', 'chief_officer']);
 
         $user = current_user();
         $filters = $this->filtersFromRequest($user);
@@ -42,7 +42,7 @@ class ReportsController
 
     public function csv(): void
     {
-        require_role(['admin', 'hr', 'director', 'supervisor']);
+        require_role(['admin', 'hr', 'director', 'supervisor', 'chief_officer']);
 
         $user = current_user();
         $filters = $this->filtersFromRequest($user);
@@ -80,7 +80,7 @@ class ReportsController
 
     public function pdf(): void
     {
-        require_role(['admin', 'hr', 'director', 'supervisor']);
+        require_role(['admin', 'hr', 'director', 'supervisor', 'chief_officer']);
 
         $user = current_user();
         $filters = $this->filtersFromRequest($user);

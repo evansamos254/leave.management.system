@@ -76,6 +76,18 @@
             <input type="text" name="designation" value="<?= e(old('designation')) ?>" required>
         </label>
         <label>
+            <span>Job group</span>
+            <select name="job_group" required>
+                <option value="">Select job group</option>
+                <?php foreach (job_group_options() as $value => $label): ?>
+                    <option value="<?= e($value) ?>" <?= old('job_group') === $value ? 'selected' : '' ?>>
+                        <?= e($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <small>Select the payroll job group used to identify payment level.</small>
+        </label>
+        <label>
             <span>Role</span>
             <select name="role" required data-worker-role-select>
                 <?php foreach ($roles as $role): ?>

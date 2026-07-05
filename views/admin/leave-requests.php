@@ -29,7 +29,7 @@
         <input type="hidden" name="route" value="admin/leave-requests">
         <label>
             <span>Search</span>
-            <input type="search" name="search" value="<?= e($search) ?>" placeholder="Name, email, payroll number, leave type">
+            <input type="search" name="search" value="<?= e($search) ?>" placeholder="Name, email, payroll number, job group, leave type">
         </label>
         <label>
             <span>Status</span>
@@ -75,6 +75,7 @@
                         <td>
                             <strong><?= e($request['employee_name']) ?></strong>
                             <small>Payroll/ID: <?= e($request['staff_id']) ?> | <?= e($request['employee_email']) ?></small>
+                            <small>Job group: <?= e($request['job_group'] ?? 'N/A') ?></small>
                         </td>
                         <td><?= e($request['directorate_name'] ?? 'N/A') ?></td>
                         <td><?= e($request['department_name'] ?? 'N/A') ?></td>

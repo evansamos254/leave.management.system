@@ -194,6 +194,27 @@ function kenyan_phone_number_error(?string $phone, string $label = 'Phone number
         : $label . ' must be a Kenyan mobile number, for example +254 700 000 000.';
 }
 
+function job_group_options(): array
+{
+    $groups = range('E', 'R');
+
+    return array_combine($groups, $groups) ?: [];
+}
+
+function is_valid_job_group(?string $jobGroup): bool
+{
+    $jobGroup = strtoupper(trim((string) $jobGroup));
+
+    return $jobGroup !== '' && array_key_exists($jobGroup, job_group_options());
+}
+
+function normalize_job_group(?string $jobGroup): ?string
+{
+    $jobGroup = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $jobGroup) ?? ''));
+
+    return is_valid_job_group($jobGroup) ? $jobGroup : null;
+}
+
 function name_parts(?string $fullName): array
 {
     $name = trim(preg_replace('/\s+/', ' ', (string) $fullName) ?? '');
@@ -511,6 +532,26 @@ function uploaded_file_is_pdf(array $file): bool
     fclose($handle);
 
     return $header === '%PDF-';
+}
+
+function uploaded_file_is_image(array $file): bool
+{
+    $extension = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        return false;
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_file($tmpName) || !is_readable($tmpName)) {
+        return false;
+    }
+
+    $size = @getimagesize($tmpName);
+    if (!$size) {
+        return false;
+    }
+
+    return in_array(($size['mime'] ?? ''), ['image/jpeg', 'image/png', 'image/webp'], true);
 }
 
 function format_days(mixed $value, string $default = '-'): string

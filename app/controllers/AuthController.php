@@ -5,6 +5,17 @@ class AuthController
     public function showLogin(): void
     {
         require_guest();
+
+        $pending = $this->pendingLoginOtp();
+        if ($pending !== null) {
+            if ($this->isPendingLoginOtpExpired($pending)) {
+                $this->clearPendingLoginOtp();
+                set_flash('error', 'Your login verification code expired. Please sign in again.');
+            } else {
+                redirect('login/otp');
+            }
+        }
+
         plain_view('auth/login', ['title' => 'Login']);
     }
 
@@ -61,9 +72,96 @@ class AuthController
             redirect('login');
         }
 
+        $otpCode = $this->issueLoginOtp($user);
+        if (!ExternalNotificationService::loginOtp($user, $otpCode, $this->otpExpiryMinutes())) {
+            $reason = trim(ExternalNotificationService::lastEmailError());
+            $this->clearPendingLoginOtp();
+
+            $message = 'Login verification email could not be sent.';
+            if ($reason !== '') {
+                $message .= ' Reason: ' . $reason . '.';
+            }
+
+            set_flash('error', $message);
+            redirect('login');
+        }
+
+        set_flash('success', 'A verification code has been sent to your registered email address.');
+        redirect('login/otp');
+    }
+
+    public function showOtp(): void
+    {
+        require_guest();
+
+        $pending = $this->pendingLoginOtp();
+        if ($pending === null) {
+            set_flash('error', 'Please sign in again to receive a verification code.');
+            redirect('login');
+        }
+
+        if ($this->isPendingLoginOtpExpired($pending)) {
+            $this->clearPendingLoginOtp();
+            set_flash('error', 'Your login verification code expired. Please sign in again.');
+            redirect('login');
+        }
+
+        plain_view('auth/otp', [
+            'title' => 'Verify Login',
+            'maskedEmail' => $this->maskEmail((string) ($pending['email'] ?? '')),
+            'otpDigits' => $this->otpDigits(),
+            'expiresAt' => (int) ($pending['expires_at'] ?? time()),
+        ]);
+    }
+
+    public function verifyOtp(): void
+    {
+        require_guest();
+        verify_csrf();
+
+        $pending = $this->pendingLoginOtp();
+        if ($pending === null) {
+            set_flash('error', 'Please sign in again.');
+            redirect('login');
+        }
+
+        if ($this->isPendingLoginOtpExpired($pending)) {
+            $this->clearPendingLoginOtp();
+            set_flash('error', 'Your login verification code expired. Please sign in again.');
+            redirect('login');
+        }
+
+        $code = trim((string) ($_POST['otp_code'] ?? ''));
+        if ($code === '') {
+            set_flash('error', 'Verification code is required.');
+            redirect('login/otp');
+        }
+
+        if (!password_verify($code, (string) ($pending['otp_hash'] ?? ''))) {
+            $this->incrementPendingLoginOtpAttempts();
+
+            if ($this->pendingLoginOtpAttemptsExceeded()) {
+                $this->clearPendingLoginOtp();
+                set_flash('error', 'Too many invalid verification attempts. Please sign in again.');
+                redirect('login');
+            }
+
+            set_flash('error', 'The verification code is incorrect.');
+            redirect('login/otp');
+        }
+
+        $user = User::find((int) ($pending['user_id'] ?? 0));
+        if (!$user || $user['status'] !== 'active') {
+            $this->clearPendingLoginOtp();
+            set_flash('error', 'Your account is unavailable. Please contact ICT.');
+            redirect('login');
+        }
+
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['last_activity_at'] = time();
+        $this->clearPendingLoginOtp();
+
         User::updateLastLogin((int) $user['id']);
         AuditService::record('login', 'users', (int) $user['id'], (int) $user['id']);
 
@@ -73,6 +171,68 @@ class AuthController
         }
 
         redirect('dashboard');
+    }
+
+    public function resendOtp(): void
+    {
+        require_guest();
+        verify_csrf();
+
+        $pending = $this->pendingLoginOtp();
+        if ($pending === null) {
+            set_flash('error', 'Please sign in again.');
+            redirect('login');
+        }
+
+        if ($this->isPendingLoginOtpExpired($pending)) {
+            $this->clearPendingLoginOtp();
+            set_flash('error', 'Your login verification code expired. Please sign in again.');
+            redirect('login');
+        }
+
+        $cooldown = $this->otpResendCooldownSeconds();
+        $lastSentAt = (int) ($pending['sent_at'] ?? 0);
+        if ($lastSentAt > 0 && (time() - $lastSentAt) < $cooldown) {
+            $wait = $cooldown - (time() - $lastSentAt);
+            set_flash('error', 'Please wait ' . $wait . ' second(s) before requesting another code.');
+            redirect('login/otp');
+        }
+
+        $user = User::find((int) ($pending['user_id'] ?? 0));
+        if (!$user || $user['status'] !== 'active') {
+            $this->clearPendingLoginOtp();
+            set_flash('error', 'Your account is unavailable. Please contact ICT.');
+            redirect('login');
+        }
+
+        $previousPending = $pending;
+        $otpCode = $this->issueLoginOtp($user, (int) ($pending['resend_count'] ?? 0) + 1);
+
+        if (!ExternalNotificationService::loginOtp($user, $otpCode, $this->otpExpiryMinutes())) {
+            $_SESSION['login_otp'] = $previousPending;
+            $reason = trim(ExternalNotificationService::lastEmailError());
+
+            $message = 'Verification code could not be resent.';
+            if ($reason !== '') {
+                $message .= ' Reason: ' . $reason . '.';
+            }
+
+            set_flash('error', $message);
+            redirect('login/otp');
+        }
+
+        set_flash('success', 'A new verification code has been sent to your registered email address.');
+        redirect('login/otp');
+    }
+
+    public function cancelOtp(): void
+    {
+        require_guest();
+        verify_csrf();
+
+        $this->clearPendingLoginOtp();
+        set_flash('success', 'Login verification cancelled.');
+        redirect('login');
     }
 
     public function forgotPassword(): void
@@ -151,6 +311,7 @@ class AuthController
             'directorate_id' => (int) ($_POST['directorate_id'] ?? 0),
             'department_id' => (int) ($_POST['department_id'] ?? 0),
             'designation' => trim($_POST['designation'] ?? ''),
+            'job_group' => normalize_job_group($_POST['job_group'] ?? null),
             'employment_date' => trim($_POST['employment_date'] ?? ''),
             'password' => (string) ($_POST['password'] ?? ''),
             'password_confirmation' => (string) ($_POST['password_confirmation'] ?? ''),
@@ -185,6 +346,7 @@ class AuthController
                 'staff_id' => $data['staff_id'],
                 'department_id' => $data['department_id'],
                 'designation' => $data['designation'],
+                'job_group' => $data['job_group'],
                 'employment_date' => $data['employment_date'],
             ]);
 
@@ -234,6 +396,115 @@ class AuthController
 
         session_destroy();
         redirect('login');
+    }
+
+    private function issueLoginOtp(array $user, int $resendCount = 0): string
+    {
+        $digits = $this->otpDigits();
+        $otpCode = $this->generateOtpCode($digits);
+
+        session_regenerate_id(true);
+        $_SESSION['login_otp'] = [
+            'user_id' => (int) $user['id'],
+            'email' => (string) ($user['email'] ?? ''),
+            'name' => (string) ($user['full_name'] ?? ''),
+            'otp_hash' => password_hash($otpCode, PASSWORD_DEFAULT),
+            'expires_at' => time() + ($this->otpExpiryMinutes() * 60),
+            'sent_at' => time(),
+            'attempts' => 0,
+            'resend_count' => max(0, $resendCount),
+        ];
+
+        return $otpCode;
+    }
+
+    private function pendingLoginOtp(): ?array
+    {
+        $pending = $_SESSION['login_otp'] ?? null;
+
+        return is_array($pending) ? $pending : null;
+    }
+
+    private function clearPendingLoginOtp(): void
+    {
+        unset($_SESSION['login_otp']);
+    }
+
+    private function isPendingLoginOtpExpired(array $pending): bool
+    {
+        return empty($pending['expires_at']) || (int) $pending['expires_at'] < time();
+    }
+
+    private function incrementPendingLoginOtpAttempts(): void
+    {
+        if (!isset($_SESSION['login_otp']) || !is_array($_SESSION['login_otp'])) {
+            return;
+        }
+
+        $_SESSION['login_otp']['attempts'] = (int) ($_SESSION['login_otp']['attempts'] ?? 0) + 1;
+    }
+
+    private function pendingLoginOtpAttemptsExceeded(): bool
+    {
+        return (int) ($_SESSION['login_otp']['attempts'] ?? 0) >= $this->otpMaxAttempts();
+    }
+
+    private function otpDigits(): int
+    {
+        $security = app_config('security', []);
+        $otp = $security['login_otp'] ?? [];
+
+        return max(4, min(8, (int) ($otp['digits'] ?? 6)));
+    }
+
+    private function otpExpiryMinutes(): int
+    {
+        $security = app_config('security', []);
+        $otp = $security['login_otp'] ?? [];
+
+        return max(1, (int) ($otp['expiry_minutes'] ?? 5));
+    }
+
+    private function otpMaxAttempts(): int
+    {
+        $security = app_config('security', []);
+        $otp = $security['login_otp'] ?? [];
+
+        return max(1, (int) ($otp['max_attempts'] ?? 5));
+    }
+
+    private function otpResendCooldownSeconds(): int
+    {
+        $security = app_config('security', []);
+        $otp = $security['login_otp'] ?? [];
+
+        return max(0, (int) ($otp['resend_cooldown_seconds'] ?? 30));
+    }
+
+    private function generateOtpCode(int $digits): string
+    {
+        $digits = max(4, min(8, $digits));
+        $max = (10 ** $digits) - 1;
+
+        return str_pad((string) random_int(0, $max), $digits, '0', STR_PAD_LEFT);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        $email = trim($email);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $email;
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+        $localLength = strlen($local);
+        if ($localLength <= 2) {
+            $maskedLocal = str_repeat('*', max(1, $localLength));
+        } else {
+            $maskedLocal = substr($local, 0, 2) . str_repeat('*', max(3, $localLength - 2));
+        }
+
+        return $maskedLocal . '@' . $domain;
     }
 
     private function validateRegistration(array $data): array
@@ -289,6 +560,10 @@ class AuthController
 
         if ($data['designation'] === '') {
             $errors['designation'] = 'Designation is required.';
+        }
+
+        if (!is_valid_job_group($data['job_group'])) {
+            $errors['job_group'] = 'Please select a valid job group.';
         }
 
         if (strlen($data['password']) < 6) {

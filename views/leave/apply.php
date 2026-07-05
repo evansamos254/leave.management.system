@@ -37,6 +37,10 @@
                     <input type="text" value="<?= e(designation_label($employee['designation'] ?? null, $user['role'] ?? null)) ?>" disabled>
                 </label>
                 <label>
+                    <span>Job group</span>
+                    <input type="text" value="<?= e($employee['job_group'] ?? 'N/A') ?>" disabled>
+                </label>
+                <label>
                     <span>Contact Number</span>
                     <input type="tel" name="contact_number" value="<?= e(old('contact_number', format_kenyan_phone_number($user['phone'] ?? ''))) ?>" class="<?= has_field_error('contact_number') ? 'is-invalid' : '' ?>" inputmode="tel" autocomplete="tel" placeholder="+254 700 000 000">
                     <?php if ($error = field_error('contact_number')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
@@ -105,6 +109,12 @@
                     <input type="file" name="attachment" class="<?= has_field_error('attachment') ? 'is-invalid' : '' ?>" accept=".pdf,application/pdf">
                     <?php if ($error = field_error('attachment')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     <small data-planner-attachment>PDF attachment guidance will appear after selecting a leave type.</small>
+                </label>
+                <label>
+                    <span>Passport Photo</span>
+                    <input type="file" name="passport_photo" class="<?= has_field_error('passport_photo') ? 'is-invalid' : '' ?>" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+                    <?php if ($error = field_error('passport_photo')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                    <small>Upload a recent passport photo in JPG, PNG, or WebP format.</small>
                 </label>
                 <label class="span-2">
                     <span>Reason / Comments</span>

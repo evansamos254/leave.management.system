@@ -43,6 +43,7 @@
                         <td>
                             <?= e($worker['staff_id']) ?>
                             <small><?= e(designation_label($worker['designation'] ?? null, $worker['role'] ?? null)) ?></small>
+                            <small>Job group: <?= e($worker['job_group'] ?? 'N/A') ?></small>
                         </td>
                         <td><?= e($directorateLabel) ?></td>
                         <td><?= e($departmentLabel) ?></td>
