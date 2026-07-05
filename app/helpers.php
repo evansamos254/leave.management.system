@@ -48,6 +48,33 @@ function url(string $path = ''): string
     return $frontController . ($path === '' ? '' : '?route=' . urlencode($path));
 }
 
+function absolute_url(string $path = ''): string
+{
+    $link = url($path);
+    if (preg_match('#^https?://#i', $link)) {
+        return $link;
+    }
+
+    $base = rtrim((string) (app_config('base_url', '') ?: getenv('APP_URL') ?: ''), '/');
+    if ($base !== '') {
+        return $base . '/' . ltrim($link, '/');
+    }
+
+    $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+    if ($host === '') {
+        return $link;
+    }
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $scriptDir = trim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/.');
+    $prefix = $scheme . '://' . $host;
+    if ($scriptDir !== '') {
+        $prefix .= '/' . $scriptDir;
+    }
+
+    return $prefix . '/' . ltrim($link, '/');
+}
+
 function asset(string $path): string
 {
     $base = rtrim(app_config('base_url', ''), '/');

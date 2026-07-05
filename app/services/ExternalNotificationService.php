@@ -16,7 +16,8 @@ class ExternalNotificationService
             $email,
             $phone,
             'Account request received',
-            'Hello ' . $name . ', your account request has been received and is waiting for ICT approval.'
+            'Hello ' . $name . ', your account request has been received and is waiting for ICT approval.',
+            'Open the system here: ' . absolute_url('login')
         );
     }
 
@@ -27,7 +28,8 @@ class ExternalNotificationService
             $user['email'],
             $user['phone'] ?? null,
             'Your leave system account has been approved',
-            'Hello ' . $user['full_name'] . ', ICT has approved your account request. You can now log in to the leave system using your email address or National ID.'
+            'Hello ' . $user['full_name'] . ', ICT has approved your account request. You can now log in to the leave system using your email address or National ID.',
+            'Open the system here: ' . absolute_url('login')
         );
     }
 
@@ -44,7 +46,8 @@ class ExternalNotificationService
             $user['email'],
             $user['phone'] ?? null,
             'Account request rejected',
-            $message
+            $message,
+            'Return to the system here: ' . absolute_url('login')
         );
     }
 
@@ -63,7 +66,8 @@ class ExternalNotificationService
             'Hello ' . $user['full_name'] . ', your leave system account has been created. '
                 . $loginDetails . ' Temporary password: ' . $temporaryPassword
                 . ' Please log in and change your password from your profile.',
-            'Staff account creation instructions sent.'
+            'Staff account creation instructions sent.',
+            'Open the system here: ' . absolute_url('login')
         );
     }
 
@@ -77,7 +81,8 @@ class ExternalNotificationService
             $user['email'],
             'Leave system password reset',
             $message,
-            'Password reset instructions sent.'
+            'Password reset instructions sent.',
+            'Open the system here: ' . absolute_url('login')
         );
     }
 
@@ -95,7 +100,8 @@ class ExternalNotificationService
             (string) ($user['email'] ?? ''),
             'Leave system login verification code',
             $message,
-            'Login verification code sent.'
+            'Login verification code sent.',
+            'Open the system here: ' . absolute_url('login')
         );
     }
 
@@ -104,7 +110,8 @@ class ExternalNotificationService
         return self::sendLeaveEmail(
             $request,
             'Leave request submitted',
-            'Your leave request has been submitted and is waiting for ' . role_label($nextRole) . ' review.'
+            'Your leave request has been submitted and is waiting for ' . role_label($nextRole) . ' review.',
+            self::leaveLink($request, 'leave/view')
         );
     }
 
@@ -113,7 +120,8 @@ class ExternalNotificationService
         return self::sendLeaveEmail(
             $request,
             'Leave request moved to ' . role_label($nextRole) . ' review',
-            'Your leave request has moved to ' . role_label($nextRole) . ' review.'
+            'Your leave request has moved to ' . role_label($nextRole) . ' review.',
+            self::leaveLink($request, 'leave/view')
         );
     }
 
@@ -122,7 +130,8 @@ class ExternalNotificationService
         return self::sendLeaveEmail(
             $request,
             'Leave request approved',
-            'Your leave request has received final approval.' . PHP_EOL . self::leaveApprovalWish($request)
+            'Your leave request has received final approval.' . PHP_EOL . self::leaveApprovalWish($request),
+            self::leaveLink($request, 'leave/view')
         );
     }
 
@@ -147,7 +156,8 @@ class ExternalNotificationService
             $email,
             $subject,
             $message,
-            'Leave ending reminder sent.'
+            'Leave ending reminder sent.',
+            self::leaveLink($request, 'leave/view')
         );
     }
 
@@ -220,7 +230,7 @@ class ExternalNotificationService
             $message .= PHP_EOL . 'Reason: ' . trim($reason);
         }
 
-        return self::sendLeaveEmail($request, 'Leave request rejected', $message);
+        return self::sendLeaveEmail($request, 'Leave request rejected', $message, self::leaveLink($request, 'leave/view'));
     }
 
     public static function leaveForfeitureRecorded(array $request, array $forfeiture): bool
@@ -247,11 +257,12 @@ class ExternalNotificationService
             $phone,
             'Leave forfeiture payout recorded',
             $message,
-            'Leave forfeiture payout notification sent.'
+            'Leave forfeiture payout notification sent.',
+            self::leaveLink($request, 'leave/view')
         );
     }
 
-    private static function sendLeaveEmail(array $request, string $subject, string $statusMessage): bool
+    private static function sendLeaveEmail(array $request, string $subject, string $statusMessage, ?string $actionLink = null): bool
     {
         $name = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';
         $email = $request['employee_email'] ?? $request['email'] ?? '';
@@ -267,7 +278,8 @@ class ExternalNotificationService
                 . $statusMessage . PHP_EOL . PHP_EOL
                 . $summary . PHP_EOL
                 . 'Please log in to the leave system to view the full progress.',
-            'Leave request progress email sent.'
+            'Leave request progress email sent.',
+            $actionLink
         );
     }
 
@@ -307,9 +319,10 @@ class ExternalNotificationService
         ?string $phone,
         string $subject,
         string $message,
-        ?string $logMessage = null
+        ?string $logMessage = null,
+        ?string $actionLink = null
     ): bool {
-        $emailSent = self::sendEmail($email, $subject, $message, $logMessage);
+        $emailSent = self::sendEmail($email, $subject, $message, $logMessage, $actionLink);
 
         $normalizedPhone = normalize_kenyan_phone_number($phone);
         if ($normalizedPhone !== null) {
@@ -319,11 +332,21 @@ class ExternalNotificationService
         return $emailSent;
     }
 
-    private static function sendEmail(string $email, string $subject, string $message, ?string $logMessage = null): bool
+    private static function sendEmail(
+        string $email,
+        string $subject,
+        string $message,
+        ?string $logMessage = null,
+        ?string $actionLink = null
+    ): bool
     {
         $config = app_config('notifications', [])['email'] ?? [];
         $logMessage = $logMessage ?? $message;
         self::$lastEmailError = '';
+
+        if ($actionLink !== null && trim($actionLink) !== '') {
+            $message .= PHP_EOL . PHP_EOL . 'Open the system: ' . trim($actionLink);
+        }
 
         if (empty($config['enabled'])) {
             self::$lastEmailError = 'Email notifications are disabled';
@@ -457,6 +480,18 @@ class ExternalNotificationService
         $message = preg_replace('/\s+/', ' ', trim($message));
 
         return substr($message ?: 'SMTP send failed', 0, 180);
+    }
+
+    private static function leaveLink(array $request, string $route): string
+    {
+        $link = absolute_url($route);
+        $requestId = (int) ($request['id'] ?? 0);
+
+        if ($requestId > 0 && ($route === 'leave/view' || $route === 'leave/pdf')) {
+            $link .= '&id=' . $requestId;
+        }
+
+        return $link;
     }
 
     private static function sendSms(string $phone, string $message, ?string $logMessage = null): void

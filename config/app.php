@@ -10,7 +10,7 @@ return [
     'name' => 'Busia County Staff Online Leave Application System',
     'hro_confirmation_name' => '',
     'timezone' => 'Africa/Nairobi',
-    'base_url' => '',
+    'base_url' => 'https://uatleave.busiacounty.go.ke',
     'upload_dir' => dirname(__DIR__) . '/uploads/leave-attachments',
     'max_upload_size' => 5 * 1024 * 1024,
     'allowed_upload_extensions' => ['pdf'],
