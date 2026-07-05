@@ -38,13 +38,13 @@ class AuditService
              LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
              LEFT JOIN employees owner_emp ON owner_emp.id = lr.employee_id
              LEFT JOIN users owner ON owner.id = owner_emp.user_id
-             WHERE al.user_id = :user_id
-                OR (al.entity_type = "users" AND al.entity_id = :user_id)
-                OR (owner.id = :user_id)
+             WHERE al.user_id = ?
+                OR (al.entity_type = "users" AND al.entity_id = ?)
+                OR (owner.id = ?)
              ORDER BY al.created_at DESC, al.id DESC
              LIMIT ' . $limit
         );
-        $stmt->execute(['user_id' => $userId]);
+        $stmt->execute([$userId, $userId, $userId]);
 
         return $stmt->fetchAll();
     }
