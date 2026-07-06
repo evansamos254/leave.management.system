@@ -112,6 +112,15 @@ class Employee
         ]);
     }
 
+    public static function updateJobGroup(int $employeeId, ?string $jobGroup): void
+    {
+        $stmt = db()->prepare('UPDATE employees SET job_group = :job_group WHERE id = :id');
+        $stmt->execute([
+            'job_group' => normalize_job_group($jobGroup),
+            'id' => $employeeId,
+        ]);
+    }
+
     public static function workersWithAccounts(): array
     {
         $stmt = db()->query(

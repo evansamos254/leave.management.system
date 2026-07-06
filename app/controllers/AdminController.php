@@ -810,7 +810,7 @@ class AdminController
         }
 
         if (!is_valid_job_group($data['job_group'])) {
-            $errors[] = 'Please select a valid job group.';
+            $errors[] = 'Please select or enter a valid job group.';
         }
 
         if (!in_array($data['role'], $this->workerRoles, true)) {
@@ -911,7 +911,7 @@ class AdminController
         }
 
         if (!is_valid_job_group($data['job_group'])) {
-            $errors[] = 'Please select a valid job group.';
+            $errors[] = 'Please select or enter a valid job group.';
         }
 
         if ($data['employment_date'] !== '' && !is_valid_past_or_today_date($data['employment_date'])) {

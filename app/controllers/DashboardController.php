@@ -68,6 +68,7 @@ class DashboardController
 
         $redirectTo = trim($_POST['redirect_to'] ?? 'dashboard') ?: 'dashboard';
         $user = current_user();
+        $employee = !empty($user['employee_id']) ? Employee::find((int) $user['employee_id']) : null;
         $firstName = trim($_POST['first_name'] ?? '');
         $lastName = trim($_POST['last_name'] ?? '');
         $data = [
@@ -78,6 +79,7 @@ class DashboardController
             'national_id' => User::normalizeNationalId((string) ($_POST['national_id'] ?? '')),
             'gender' => User::normalizeGender($_POST['gender'] ?? null),
             'phone' => trim($_POST['phone'] ?? ''),
+            'job_group' => normalize_job_group($_POST['job_group'] ?? null),
         ];
         $errors = [];
 
@@ -118,13 +120,33 @@ class DashboardController
             $errors[] = $phoneError;
         }
 
+        if ($employee && $data['job_group'] === null) {
+            $errors[] = 'Job group is required. Choose a standard group or type the missing value.';
+        }
+
         if ($errors) {
             set_flash('error', implode(' ', $errors));
             redirect($redirectTo);
         }
 
-        User::updateProfile((int) $user['id'], $data);
-        AuditService::record('update_profile', 'users', (int) $user['id']);
+        try {
+            db()->beginTransaction();
+
+            User::updateProfile((int) $user['id'], $data);
+
+            if ($employee) {
+                Employee::updateJobGroup((int) $employee['id'], $data['job_group']);
+            }
+
+            AuditService::record('update_profile', 'users', (int) $user['id']);
+            db()->commit();
+        } catch (Throwable $throwable) {
+            db()->rollBack();
+            app_log($throwable);
+            set_flash('error', 'Profile information could not be updated. Please try again.');
+            redirect($redirectTo);
+        }
+
         set_flash('success', 'Profile information updated.');
         redirect($redirectTo);
     }

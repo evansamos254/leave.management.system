@@ -563,7 +563,7 @@ class AuthController
         }
 
         if (!is_valid_job_group($data['job_group'])) {
-            $errors['job_group'] = 'Please select a valid job group.';
+            $errors['job_group'] = 'Please select or enter a valid job group.';
         }
 
         if (strlen($data['password']) < 6) {

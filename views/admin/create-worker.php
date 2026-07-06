@@ -77,15 +77,22 @@
         </label>
         <label>
             <span>Job group</span>
-            <select name="job_group" required>
-                <option value="">Select job group</option>
+            <input
+                type="text"
+                name="job_group"
+                value="<?= e(old('job_group')) ?>"
+                placeholder="Select or type job group"
+                list="job-group-options"
+                autocomplete="off"
+                autocapitalize="characters"
+                required
+            >
+            <datalist id="job-group-options">
                 <?php foreach (job_group_options() as $value => $label): ?>
-                    <option value="<?= e($value) ?>" <?= old('job_group') === $value ? 'selected' : '' ?>>
-                        <?= e($label) ?>
-                    </option>
+                    <option value="<?= e($value) ?>"><?= e($label) ?></option>
                 <?php endforeach; ?>
-            </select>
-            <small>Select the payroll job group used to identify payment level.</small>
+            </datalist>
+            <small>Select a standard payroll job group or type the missing one if it is not listed.</small>
         </label>
         <label>
             <span>Role</span>

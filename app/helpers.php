@@ -232,7 +232,15 @@ function is_valid_job_group(?string $jobGroup): bool
 {
     $jobGroup = strtoupper(trim((string) $jobGroup));
 
-    return $jobGroup !== '' && array_key_exists($jobGroup, job_group_options());
+    if ($jobGroup === '') {
+        return false;
+    }
+
+    if (array_key_exists($jobGroup, job_group_options())) {
+        return true;
+    }
+
+    return preg_match('/^[A-Z0-9][A-Z0-9\s\-\/&().]{0,39}$/', $jobGroup) === 1;
 }
 
 function normalize_job_group(?string $jobGroup): ?string

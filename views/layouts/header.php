@@ -7,6 +7,7 @@ $profilePhotoUrl = $authUser && !empty($authUser['profile_photo_path'])
     ? url('profile/photo') . '&v=' . urlencode((string) ($authUser['updated_at'] ?? time()))
     : null;
 $authNameParts = $authUser ? name_parts($authUser['full_name'] ?? '') : ['first_name' => '', 'last_name' => ''];
+$canEditJobGroup = $authUser && !empty($authUser['employee_id']);
 $isAuthHrOffice = $authUser && ($authUser['role'] ?? '') === 'hr' && empty($authUser['department_name']);
 $authDirectorateLabel = $isAuthHrOffice ? 'HR Office' : ($authUser['directorate_name'] ?? 'Not assigned');
 $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['department_name'] ?? 'Not assigned');
@@ -208,6 +209,27 @@ $canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'sup
                                         <span>Phone number</span>
                                         <input type="tel" name="phone" value="<?= e(format_kenyan_phone_number($authUser['phone'] ?? '')) ?>" inputmode="tel" autocomplete="tel" placeholder="+254 700 000 000">
                                     </label>
+                                    <?php if ($canEditJobGroup): ?>
+                                        <label>
+                                            <span>Job group</span>
+                                            <input
+                                                type="text"
+                                                name="job_group"
+                                                value="<?= e($authUser['job_group'] ?? '') ?>"
+                                                list="job-group-options-profile"
+                                                placeholder="Select or type job group"
+                                                autocomplete="off"
+                                                autocapitalize="characters"
+                                                required
+                                            >
+                                            <datalist id="job-group-options-profile">
+                                                <?php foreach (job_group_options() as $value => $label): ?>
+                                                    <option value="<?= e($value) ?>"><?= e($label) ?></option>
+                                                <?php endforeach; ?>
+                                            </datalist>
+                                            <small>Select a standard job group or type the missing one if it is not listed.</small>
+                                        </label>
+                                    <?php endif; ?>
                                     <button class="btn btn-small btn-primary" type="submit">Save Profile</button>
                                 </form>
                             </details>

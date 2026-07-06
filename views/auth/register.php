@@ -110,16 +110,24 @@
                 </label>
                 <label>
                     <span>Job group</span>
-                    <select name="job_group" class="<?= has_field_error('job_group') ? 'is-invalid' : '' ?>" required>
-                        <option value="">Select job group</option>
+                    <input
+                        type="text"
+                        name="job_group"
+                        value="<?= e(old('job_group')) ?>"
+                        class="<?= has_field_error('job_group') ? 'is-invalid' : '' ?>"
+                        list="job-group-options"
+                        placeholder="Select or type job group"
+                        autocomplete="off"
+                        autocapitalize="characters"
+                        required
+                    >
+                    <datalist id="job-group-options">
                         <?php foreach (job_group_options() as $value => $label): ?>
-                            <option value="<?= e($value) ?>" <?= old('job_group') === $value ? 'selected' : '' ?>>
-                                <?= e($label) ?>
-                            </option>
+                            <option value="<?= e($value) ?>"><?= e($label) ?></option>
                         <?php endforeach; ?>
-                    </select>
+                    </datalist>
                     <?php if ($error = field_error('job_group')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
-                    <small>Select the payroll job group used to identify payment level.</small>
+                    <small>Select a standard payroll job group or type the missing one if it is not listed.</small>
                 </label>
                 <label>
                     <span>Employment date</span>
