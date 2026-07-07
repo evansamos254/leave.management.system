@@ -64,6 +64,7 @@ class LeaveRequest
                     e.user_id AS employee_user_id, e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
                     ru.full_name AS resumed_by_name,
+                    rr.full_name AS recalled_by_name,
                     lf.id AS forfeiture_id, lf.days_forfeited, lf.payout_amount, lf.notes AS forfeiture_notes,
                     lf.recorded_at AS forfeited_at, lfu.full_name AS forfeited_by_name,
                     d.directorate_id, d.name AS department_name,
@@ -73,6 +74,7 @@ class LeaveRequest
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
              LEFT JOIN users ru ON ru.id = lr.resumed_by_user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN leave_forfeitures lf ON lf.leave_request_id = lr.id
              LEFT JOIN users lfu ON lfu.id = lf.recorded_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
@@ -90,11 +92,13 @@ class LeaveRequest
         $stmt = db()->prepare(
             'SELECT lr.*, lt.name AS leave_type_name,
                     lf.id AS forfeiture_id, lf.days_forfeited, lf.payout_amount, lf.notes AS forfeiture_notes,
-                    lf.recorded_at AS forfeited_at, lfu.full_name AS forfeited_by_name
+                    lf.recorded_at AS forfeited_at, lfu.full_name AS forfeited_by_name,
+                    rr.full_name AS recalled_by_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              LEFT JOIN leave_forfeitures lf ON lf.leave_request_id = lr.id
              LEFT JOIN users lfu ON lfu.id = lf.recorded_by_user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              WHERE lr.employee_id = ?
              ORDER BY lr.submitted_at DESC'
         );
@@ -110,15 +114,16 @@ class LeaveRequest
             "SELECT lr.*, lt.name AS leave_type_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
-             WHERE lr.employee_id = ?
-               AND (
-                   lr.status = 'pending_supervisor'
-                   OR (
-                       lr.status = 'approved'
-                       AND lr.resumed_at IS NULL
-                       AND lr.end_date >= ?
-                   )
-               )
+                WHERE lr.employee_id = ?
+                  AND (
+                      lr.status = 'pending_supervisor'
+                      OR (
+                          lr.status = 'approved'
+                          AND lr.resumed_at IS NULL
+                          AND lr.recalled_at IS NULL
+                          AND lr.end_date >= ?
+                      )
+                  )
              ORDER BY lr.submitted_at ASC, lr.id ASC
              LIMIT 1"
         );
@@ -146,6 +151,7 @@ class LeaveRequest
              WHERE lr.employee_id = ?
                AND lr.status = 'approved'
                AND lr.resumed_at IS NULL
+               AND lr.recalled_at IS NULL
                AND lr.start_date <= ?
              ORDER BY lr.end_date DESC, lr.start_date DESC, lr.id DESC
              LIMIT 1"
@@ -164,12 +170,14 @@ class LeaveRequest
                        e.staff_id, e.department_id, e.job_group,
                        u.full_name AS employee_name,
                        u.email AS employee_email,
+                       rr.full_name AS recalled_by_name,
                        d.directorate_id, d.name AS department_name,
                        dir.name AS directorate_name
                 FROM leave_requests lr
                 JOIN leave_types lt ON lt.id = lr.leave_type_id
                 JOIN employees e ON e.id = lr.employee_id
                 JOIN users u ON u.id = e.user_id
+                LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
                 LEFT JOIN departments d ON d.id = e.department_id
                 LEFT JOIN directorates dir ON dir.id = d.directorate_id
                 WHERE 1 = 1
@@ -178,6 +186,10 @@ class LeaveRequest
         if ($status !== null && $status !== '') {
             if ($status === 'pending') {
                 $sql .= " AND lr.status = 'pending_supervisor'";
+            } elseif ($status === 'recalled') {
+                $sql .= ' AND lr.recalled_at IS NOT NULL';
+            } elseif ($status === 'approved') {
+                $sql .= " AND lr.status = 'approved' AND lr.recalled_at IS NULL";
             } else {
                 $sql .= ' AND lr.status = ?';
                 $params[] = $status;
@@ -251,15 +263,18 @@ class LeaveRequest
             "SELECT lr.*, lt.name AS leave_type_name,
                     e.staff_id, e.department_id, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name,
+                    rr.full_name AS recalled_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
+               AND lr.recalled_at IS NULL
                AND lr.start_date <= ?
                AND lr.end_date >= ?
                $scope
@@ -293,16 +308,19 @@ class LeaveRequest
             "SELECT lr.*, lt.name AS leave_type_name,
                     e.department_id,
                     u.full_name AS employee_name,
+                    rr.full_name AS recalled_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
                AND lr.resumed_at IS NULL
+               AND lr.recalled_at IS NULL
                AND lr.start_date <= ?
                AND lr.end_date >= ?
                $scope
@@ -324,16 +342,19 @@ class LeaveRequest
             "SELECT lr.*, lt.name AS leave_type_name,
                     e.department_id,
                     u.full_name AS employee_name,
+                    rr.full_name AS recalled_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
                AND lr.resumed_at IS NULL
+               AND lr.recalled_at IS NULL
                AND lr.end_date = ?
                $scope
              ORDER BY u.full_name ASC
@@ -354,16 +375,19 @@ class LeaveRequest
             "SELECT lr.*, lt.name AS leave_type_name,
                     e.department_id,
                     u.full_name AS employee_name,
+                    rr.full_name AS recalled_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name
              FROM leave_requests lr
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
                AND lr.resumed_at IS NULL
+               AND lr.recalled_at IS NULL
                AND lr.start_date > ?
                $scope
              ORDER BY lr.start_date ASC, u.full_name ASC
@@ -384,6 +408,7 @@ class LeaveRequest
                     e.user_id AS employee_user_id,
                     e.staff_id, e.department_id, e.designation, e.job_group, e.supervisor_id,
                     u.full_name AS employee_name, u.email AS employee_email, u.phone AS employee_phone,
+                    rr.full_name AS recalled_by_name,
                     d.directorate_id, d.name AS department_name,
                     dir.name AS directorate_name,
                     DATEDIFF(lr.end_date, CURDATE()) AS days_until_end
@@ -391,10 +416,12 @@ class LeaveRequest
              JOIN leave_types lt ON lt.id = lr.leave_type_id
              JOIN employees e ON e.id = lr.employee_id
              JOIN users u ON u.id = e.user_id
+             LEFT JOIN users rr ON rr.id = lr.recalled_by_user_id
              LEFT JOIN departments d ON d.id = e.department_id
              LEFT JOIN directorates dir ON dir.id = d.directorate_id
              WHERE lr.status = 'approved'
                AND lr.resumed_at IS NULL
+               AND lr.recalled_at IS NULL
                AND lr.start_date <= CURDATE()
                AND lr.end_date BETWEEN CURDATE() AND ?
                AND lr.end_reminder_sent_at IS NULL
@@ -522,6 +549,7 @@ class LeaveRequest
             'rejected' => 0,
             'cancelled' => 0,
             'forfeited' => 0,
+            'recalled' => 0,
             'total' => 0,
         ];
 
@@ -536,6 +564,17 @@ class LeaveRequest
                 $counts[$status] += $total;
             }
         }
+
+        $recalledStmt = db()->prepare(
+            "SELECT COUNT(*)
+             FROM leave_requests lr
+             JOIN employees e ON e.id = lr.employee_id
+             $where
+               AND lr.recalled_at IS NOT NULL"
+        );
+        $recalledStmt->execute($params);
+        $counts['recalled'] = (int) $recalledStmt->fetchColumn();
+        $counts['approved'] = max(0, $counts['approved'] - $counts['recalled']);
 
         return $counts;
     }
@@ -589,7 +628,7 @@ class LeaveRequest
     private static function reportWhere(?string $from, ?string $to, ?int $directorateId, ?int $departmentId, ?array $viewer = null): array
     {
         $params = [];
-        $where = "WHERE lr.status = 'approved'";
+        $where = "WHERE lr.status = 'approved' AND lr.recalled_at IS NULL";
 
         if ($from) {
             $where .= ' AND lr.start_date >= ?';

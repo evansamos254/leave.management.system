@@ -396,7 +396,9 @@ class LeaveController
         }
 
         $recalledByName = null;
-        if (!empty($request['recalled_by_user_id'])) {
+        if (!empty($request['recalled_by_name'])) {
+            $recalledByName = $request['recalled_by_name'];
+        } elseif (!empty($request['recalled_by_user_id'])) {
             $recalledBy = User::find((int) $request['recalled_by_user_id']);
             $recalledByName = $recalledBy['full_name'] ?? null;
         }
@@ -695,6 +697,11 @@ class LeaveController
 
         $recallDateTime = date('Y-m-d H:i:s');
         $carryoverDays = 0.0;
+        $carryoverReferenceDate = date('Y-m-d');
+        $startDate = (string) ($request['start_date'] ?? '');
+        if ($this->validDate($startDate) && strtotime($carryoverReferenceDate) < strtotime($startDate)) {
+            $carryoverReferenceDate = date('Y-m-d', strtotime($startDate . ' -1 day'));
+        }
 
         try {
             db()->beginTransaction();
@@ -703,7 +710,7 @@ class LeaveController
                 throw new RuntimeException('The leave request could not be recalled.');
             }
 
-            $carryoverDays = $this->restoreUnusedLeaveBalance($request, date('Y-m-d'));
+            $carryoverDays = $this->restoreUnusedLeaveBalance($request, $carryoverReferenceDate);
             AuditService::record('recall_leave_request', 'leave_requests', $id);
 
             db()->commit();
@@ -1094,14 +1101,6 @@ class LeaveController
         }
 
         if (($request['status'] ?? '') !== 'approved' || !empty($request['resumed_at']) || !empty($request['recalled_at'])) {
-            return false;
-        }
-
-        $today = strtotime(date('Y-m-d'));
-        $startDate = strtotime((string) ($request['start_date'] ?? ''));
-        $endDate = strtotime((string) ($request['end_date'] ?? ''));
-
-        if ($today < $startDate || $today > $endDate) {
             return false;
         }
 

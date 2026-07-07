@@ -5,9 +5,13 @@
                 <p class="eyebrow">Request #<?= (int) $request['id'] ?></p>
                 <h2><?= e($request['leave_type_name']) ?></h2>
             </div>
-            <span class="badge <?= e(status_badge_class($request['status'])) ?>">
-                <?= e(status_label($request['status'])) ?>
+            <?php $displayStatus = !empty($request['recalled_at']) ? 'recalled' : $request['status']; ?>
+            <span class="badge <?= e(!empty($request['recalled_at']) ? 'warning' : status_badge_class($request['status'])) ?>">
+                <?= e(status_label($displayStatus)) ?>
             </span>
+            <?php if (!empty($request['recalled_at'])): ?>
+                <span class="badge warning">Recalled</span>
+            <?php endif; ?>
         </div>
 
         <div class="profile-grid">
@@ -44,6 +48,16 @@
                 <strong><?= e(format_kenyan_phone_number($request['contact_number'] ?? '')) ?: 'N/A' ?></strong>
             </div>
         </div>
+
+        <?php if (!empty($canRecall) && empty($request['recalled_at'])): ?>
+            <div class="note-box">
+                <span>Official Recall</span>
+                <p>The immediate supervisor can recall this approved leave request. Upload the signed PDF recall letter to make the action official and notify the staff member.</p>
+                <p>
+                    <a class="btn btn-small btn-primary" href="#official-recall-form">Open recall form</a>
+                </p>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($request['passport_photo_path'])): ?>
             <div class="note-box">
@@ -123,7 +137,7 @@
         <?php endif; ?>
 
         <?php if (!empty($canRecall)): ?>
-            <div class="note-box">
+            <div class="note-box" id="official-recall-form">
                 <span>Official Recall</span>
                 <form class="form" method="post" action="<?= e(url('leave/recall')) ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>

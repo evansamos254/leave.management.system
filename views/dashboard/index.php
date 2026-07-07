@@ -15,6 +15,10 @@
         <span>Rejected</span>
         <strong><?= (int) $counts['rejected'] ?></strong>
     </article>
+    <article class="stat-card warning">
+        <span>Recalled</span>
+        <strong><?= (int) ($counts['recalled'] ?? 0) ?></strong>
+    </article>
 </section>
 
 <?php if ($user['role'] === 'admin'): ?>

@@ -42,11 +42,12 @@ class PdfService
         $status = (string) ($request['status'] ?? '');
         $approved = $status === 'approved';
         $forfeited = $status === 'forfeited';
+        $recalled = !empty($request['recalled_at']);
         $supervisorStep = $this->stepForRole($steps, 'supervisor');
-        $statusLabel = status_label($status);
+        $statusLabel = $recalled ? 'Recalled' : status_label($status);
         $reportBackDate = $approved ? LeaveBalanceService::returnDateAfter((string) $request['end_date']) : '-';
         $this->pageFrame();
-        $this->headerBlock((int) $request['id'], $status);
+        $this->headerBlock((int) $request['id'], $recalled ? 'recalled' : $status);
 
         $this->sectionBand(700, 'PART A: STAFF DETAILS');
         $this->fieldBox(50, 660, 248, 34, 'Staff name', $request['employee_name'] ?? 'N/A');
@@ -72,7 +73,9 @@ class PdfService
         $this->sectionBand(224, $forfeited ? 'PART D: FORFEITURE CERTIFICATE' : 'PART D: APPROVAL CERTIFICATE');
         $this->textAt(58, 205, $forfeited
             ? 'This section confirms that the leave was forfeited and a payout record has been captured in the system.'
-            : 'This section confirms the official decision recorded in the online leave system.', 9);
+            : ($recalled
+                ? 'This section confirms that the leave was officially recalled and the employee return has been recorded.'
+                : 'This section confirms the official decision recorded in the online leave system.'), 9);
 
         if ($forfeited) {
             $this->checkbox(58, 187, false, 'Approved');
@@ -83,19 +86,34 @@ class PdfService
             $this->fieldBox(50, 114, 248, 36, 'Forfeiture note', $request['forfeiture_notes'] ?? 'N/A', 8);
             $this->fieldBox(298, 114, 247, 36, 'Payroll records', 'Payout record saved for payroll processing');
         } else {
-            $this->checkbox(58, 187, $approved, 'Approved');
-            $this->checkbox(145, 187, ($request['status'] ?? '') === 'rejected', 'Rejected');
-            $this->checkbox(232, 187, str_starts_with((string) ($request['status'] ?? ''), 'pending_'), 'Pending');
-            $this->fieldBox(50, 150, 248, 35, 'Approving officer', $supervisorStep['approver_name'] ?? 'Pending supervisor action');
-            $this->fieldBox(298, 150, 247, 35, 'Approval date', format_date($supervisorStep['acted_at'] ?? null));
-            $this->fieldBox(50, 114, 248, 36, 'Supervisor comments', $supervisorStep['comments'] ?? 'N/A', 8);
-            $this->fieldBox(298, 114, 247, 36, 'HR records', $approved ? 'Approved form available for record keeping' : 'Pending final approval');
+            if ($recalled) {
+                $this->checkbox(58, 187, true, 'Approved');
+                $this->checkbox(145, 187, true, 'Recalled');
+                $this->checkbox(232, 187, false, 'Pending');
+                $this->fieldBox(50, 150, 248, 35, 'Recalled by', $request['recalled_by_name'] ?? 'Immediate supervisor');
+                $this->fieldBox(298, 150, 247, 35, 'Recall date', format_date($request['recalled_at'] ?? null));
+                $this->fieldBox(50, 114, 248, 36, 'Recall reason', $request['recall_reason'] ?? 'N/A', 8);
+                $this->fieldBox(298, 114, 247, 36, 'HR records', 'Recall notice filed with employee record');
+            } else {
+                $this->checkbox(58, 187, $approved, 'Approved');
+                $this->checkbox(145, 187, ($request['status'] ?? '') === 'rejected', 'Rejected');
+                $this->checkbox(232, 187, str_starts_with((string) ($request['status'] ?? ''), 'pending_'), 'Pending');
+                $this->fieldBox(50, 150, 248, 35, 'Approving officer', $supervisorStep['approver_name'] ?? 'Pending supervisor action');
+                $this->fieldBox(298, 150, 247, 35, 'Approval date', format_date($supervisorStep['acted_at'] ?? null));
+                $this->fieldBox(50, 114, 248, 36, 'Supervisor comments', $supervisorStep['comments'] ?? 'N/A', 8);
+                $this->fieldBox(298, 114, 247, 36, 'HR records', $approved ? 'Approved form available for record keeping' : 'Pending final approval');
+            }
         }
 
         $this->hroConfirmationLine(50, 99);
 
-        $this->sectionBand(74, $forfeited ? 'PART E: FORFEITURE / PAYOUT' : 'PART E: RETURN / RESUMPTION');
-        if ($approved) {
+        $this->sectionBand(74, $forfeited ? 'PART E: FORFEITURE / PAYOUT' : ($recalled ? 'PART E: OFFICIAL RECALL' : 'PART E: RETURN / RESUMPTION'));
+        if ($recalled) {
+            $this->fieldBox(50, 42, 165, 30, 'Recall date', format_date($request['recalled_at'] ?? null));
+            $this->fieldBox(215, 42, 165, 30, 'Recalled by', $request['recalled_by_name'] ?? 'Immediate supervisor');
+            $this->fieldBox(380, 42, 165, 30, 'Status', 'Leave withdrawn');
+            $this->stamp(430, 43, 'RECALLED');
+        } elseif ($approved) {
             $this->fieldBox(50, 42, 360, 30, 'Expected report-back date', format_date($reportBackDate));
             $this->stamp(430, 43, 'APPROVED');
         } elseif ($forfeited) {

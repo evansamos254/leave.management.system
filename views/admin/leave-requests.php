@@ -15,9 +15,14 @@
         <span>Rejected</span>
         <strong><?= (int) $counts['rejected'] ?></strong>
     </article>
+    <article class="stat-card warning">
+        <span>Recalled</span>
+        <strong><?= (int) ($counts['recalled'] ?? 0) ?></strong>
+    </article>
 </section>
 
 <section class="panel">
+    <?php $viewer = current_user(); ?>
     <div class="panel-heading">
         <div>
             <p class="eyebrow">System Monitor</p>
@@ -69,7 +74,8 @@
             <?php else: ?>
                 <?php foreach ($requests as $request): ?>
                     <?php
-                    $statusClass = status_badge_class($request['status']);
+                    $displayStatus = !empty($request['recalled_at']) ? 'recalled' : $request['status'];
+                    $statusClass = !empty($request['recalled_at']) ? 'warning' : status_badge_class($request['status']);
                     ?>
                     <tr>
                         <td>
@@ -83,9 +89,12 @@
                         <td><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></td>
                         <td><?= e(format_days($request['days_requested'])) ?></td>
                         <td>
-                            <span class="badge <?= e($statusClass) ?>"><?= e(status_label($request['status'])) ?></span>
+                            <span class="badge <?= e($statusClass) ?>"><?= e(status_label($displayStatus)) ?></span>
                             <?php if (!empty($request['recalled_at'])): ?>
                                 <small class="badge warning">Recalled <?= e(format_date($request['recalled_at'])) ?></small>
+                                <?php if (!empty($request['recalled_by_name'])): ?>
+                                    <small>By <?= e($request['recalled_by_name']) ?></small>
+                                <?php endif; ?>
                             <?php endif; ?>
                             <?php if (!empty($request['forfeiture_id'])): ?>
                                 <small><?= e(format_currency($request['payout_amount'] ?? null)) ?></small>
@@ -106,6 +115,12 @@
                         <td>
                             <a class="btn btn-small" href="<?= e(url('leave/view')) ?>&id=<?= (int) $request['id'] ?>">View</a>
                             <a class="btn btn-small btn-ghost" href="<?= e(url('leave/pdf')) ?>&id=<?= (int) $request['id'] ?>">PDF</a>
+                            <?php if (($viewer['role'] ?? '') === 'supervisor' && $request['status'] === 'approved' && empty($request['recalled_at']) && empty($request['resumed_at'])): ?>
+                                <a class="btn btn-small btn-warning" href="<?= e(url('leave/view')) ?>&id=<?= (int) $request['id'] ?>#official-recall-form">Recall</a>
+                            <?php endif; ?>
+                            <?php if (!empty($request['recall_attachment_path'])): ?>
+                                <a class="btn btn-small btn-ghost" href="<?= e(url('leave/recall-attachment')) ?>&id=<?= (int) $request['id'] ?>" target="_blank" rel="noopener">Recall Letter</a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

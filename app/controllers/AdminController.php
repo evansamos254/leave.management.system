@@ -35,6 +35,7 @@ class AdminController
             'pending',
             'pending_supervisor',
             'approved',
+            'recalled',
             'rejected',
             'cancelled',
             'forfeited',
