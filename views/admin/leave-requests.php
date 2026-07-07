@@ -84,6 +84,9 @@
                         <td><?= e(format_days($request['days_requested'])) ?></td>
                         <td>
                             <span class="badge <?= e($statusClass) ?>"><?= e(status_label($request['status'])) ?></span>
+                            <?php if (!empty($request['recalled_at'])): ?>
+                                <small class="badge warning">Recalled <?= e(format_date($request['recalled_at'])) ?></small>
+                            <?php endif; ?>
                             <?php if (!empty($request['forfeiture_id'])): ?>
                                 <small><?= e(format_currency($request['payout_amount'] ?? null)) ?></small>
                             <?php endif; ?>

@@ -423,6 +423,7 @@ function audit_action_label(string $action): string
         'approve_leave_request' => 'Approved leave request',
         'reject_leave_request' => 'Rejected leave request',
         'mark_resumed' => 'Marked resumed duty',
+        'recall_leave_request' => 'Recalled leave request',
         'record_leave_forfeiture' => 'Recorded leave forfeiture',
         'create_worker' => 'Created staff account',
         'update_user_access' => 'Updated user access',

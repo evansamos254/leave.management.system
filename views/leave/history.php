@@ -72,6 +72,9 @@
                         <td><?= e(format_days($request['days_requested'])) ?></td>
                         <td>
                             <span class="badge <?= e(status_badge_class($request['status'])) ?>"><?= e(status_label($request['status'])) ?></span>
+                            <?php if (!empty($request['recalled_at'])): ?>
+                                <small class="badge warning">Recalled <?= e(format_date($request['recalled_at'])) ?></small>
+                            <?php endif; ?>
                             <?php if (!empty($request['forfeiture_id'])): ?>
                                 <small>Payout <?= e(format_currency($request['payout_amount'] ?? null)) ?></small>
                             <?php endif; ?>
@@ -81,6 +84,9 @@
                             <div class="button-row">
                                 <a class="btn btn-small" href="<?= e(url('leave/view')) ?>&id=<?= (int) $request['id'] ?>">View</a>
                                 <a class="btn btn-small btn-ghost" href="<?= e(url('leave/pdf')) ?>&id=<?= (int) $request['id'] ?>">PDF</a>
+                                <?php if (!empty($request['recall_attachment_path'])): ?>
+                                    <a class="btn btn-small btn-ghost" href="<?= e(url('leave/recall-attachment')) ?>&id=<?= (int) $request['id'] ?>" target="_blank" rel="noopener">Recall Letter</a>
+                                <?php endif; ?>
                                 <?php if ($request['status'] === 'pending_supervisor'): ?>
                                     <a class="btn btn-small btn-ghost" href="<?= e(url('leave/edit')) ?>&id=<?= (int) $request['id'] ?>">Edit</a>
                                 <?php endif; ?>

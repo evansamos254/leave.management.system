@@ -137,6 +137,10 @@ CREATE TABLE leave_requests (
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   finalized_at DATETIME NULL,
   resumed_at DATETIME NULL,
+  recalled_at DATETIME NULL,
+  recalled_by_user_id INT UNSIGNED NULL,
+  recall_reason TEXT NULL,
+  recall_attachment_path VARCHAR(255) NULL,
   end_reminder_sent_at DATETIME NULL,
   resumed_by_user_id INT UNSIGNED NULL,
   resumption_notes TEXT NULL,
@@ -149,7 +153,9 @@ CREATE TABLE leave_requests (
   CONSTRAINT fk_leave_requests_type
     FOREIGN KEY (leave_type_id) REFERENCES leave_types(id) ON DELETE RESTRICT,
   CONSTRAINT fk_leave_requests_resumed_by
-    FOREIGN KEY (resumed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (resumed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_leave_requests_recalled_by
+    FOREIGN KEY (recalled_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE leave_forfeitures (

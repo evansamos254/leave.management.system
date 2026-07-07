@@ -46,10 +46,14 @@ try {
         'leave/resume' => is_post()
             ? (new LeaveController())->markResumed()
             : (new LeaveController())->history(),
+        'leave/recall' => is_post()
+            ? (new LeaveController())->recall()
+            : (new LeaveController())->history(),
         'leave/forfeit' => is_post()
             ? (new LeaveController())->forfeit()
             : (new LeaveController())->history(),
         'leave/attachment' => (new LeaveController())->attachment(),
+        'leave/recall-attachment' => (new LeaveController())->recallAttachment(),
         'leave/passport-photo' => (new LeaveController())->passportPhoto(),
         'approvals' => (new ApprovalController())->index(),
         'approvals/action' => (new ApprovalController())->action(),

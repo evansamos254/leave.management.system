@@ -233,6 +233,39 @@ class ExternalNotificationService
         return self::sendLeaveEmail($request, 'Leave request rejected', $message, self::leaveLink($request, 'leave/view'));
     }
 
+    public static function leaveRecallIssued(array $request, array $recall): bool
+    {
+        $recalledBy = trim((string) ($recall['recalled_by_name'] ?? 'your immediate supervisor'));
+        $recalledAt = format_date($recall['recalled_at'] ?? null);
+        $reason = trim((string) ($recall['reason'] ?? ''));
+
+        $message = 'Your leave has been officially recalled by ' . ($recalledBy !== '' ? $recalledBy : 'your immediate supervisor') . '.';
+
+        if ($recalledAt !== 'N/A') {
+            $message .= PHP_EOL . 'Recall date: ' . $recalledAt;
+        }
+
+        if ($reason !== '') {
+            $message .= PHP_EOL . 'Reason: ' . $reason;
+        }
+
+        if (!empty($recall['carryover_days']) && (float) $recall['carryover_days'] > 0) {
+            $message .= PHP_EOL . 'Unused leave restored: ' . format_days($recall['carryover_days']);
+        }
+
+        $message .= PHP_EOL . 'Please log in to view the official recall letter and leave update.';
+
+        return self::sendToContact(
+            $request['employee_name'] ?? $request['full_name'] ?? 'Applicant',
+            $request['employee_email'] ?? $request['email'] ?? '',
+            $request['employee_phone'] ?? $request['phone'] ?? null,
+            'Official leave recall notice',
+            $message,
+            'Leave recall notice sent.',
+            self::leaveLink($request, 'leave/view')
+        );
+    }
+
     public static function leaveForfeitureRecorded(array $request, array $forfeiture): bool
     {
         $name = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';

@@ -72,6 +72,25 @@
         <?php if ($request['status'] === 'approved'): ?>
             <div class="note-box">
                 <span>Return / Resumption</span>
+                <?php if (!empty($request['recalled_at'])): ?>
+                    <p>
+                        <strong>Recall notice:</strong>
+                        This leave was recalled on <?= e(format_date($request['recalled_at'])) ?>
+                        <?php if (!empty($recalledByName)): ?>
+                            by <?= e($recalledByName) ?>
+                        <?php endif; ?>.
+                    </p>
+                    <?php if (!empty($request['recall_reason'])): ?>
+                        <p><?= nl2br(e($request['recall_reason'])) ?></p>
+                    <?php endif; ?>
+                    <?php if (!empty($request['recall_attachment_path'])): ?>
+                        <p>
+                            <a class="btn btn-small btn-ghost" href="<?= e(url('leave/recall-attachment')) ?>&id=<?= (int) $request['id'] ?>" target="_blank" rel="noopener">
+                                View Recall Letter
+                            </a>
+                        </p>
+                    <?php endif; ?>
+                <?php endif; ?>
                 <?php if (!empty($request['resumed_at'])): ?>
                     <p>
                         Reported back recorded on <?= e(format_date($request['resumed_at'])) ?>
@@ -83,19 +102,45 @@
                         <p><?= nl2br(e($request['resumption_notes'])) ?></p>
                     <?php endif; ?>
                 <?php else: ?>
-                    <p>Expected report-back date: <?= e(format_date($reportBackDate ?? null)) ?>.</p>
-                    <?php if (!empty($canMarkResumed)): ?>
-                        <form class="form" method="post" action="<?= e(url('leave/resume')) ?>">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="id" value="<?= (int) $request['id'] ?>">
-                            <label>
-                                <span>Return note</span>
-                                <textarea name="resumption_notes" rows="3" placeholder="Optional note for HR records"></textarea>
-                            </label>
-                            <button class="btn btn-primary" type="submit">Mark Reported Back</button>
-                        </form>
+                    <?php if (empty($request['recalled_at'])): ?>
+                        <p>Expected report-back date: <?= e(format_date($reportBackDate ?? null)) ?>.</p>
+                        <?php if (!empty($canMarkResumed)): ?>
+                            <form class="form" method="post" action="<?= e(url('leave/resume')) ?>">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $request['id'] ?>">
+                                <label>
+                                    <span>Return note</span>
+                                    <textarea name="resumption_notes" rows="3" placeholder="Optional note for HR records"></textarea>
+                                </label>
+                                <button class="btn btn-primary" type="submit">Mark Reported Back</button>
+                            </form>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <p>The leave has been recorded as reported back following the official recall.</p>
                     <?php endif; ?>
                 <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($canRecall)): ?>
+            <div class="note-box">
+                <span>Official Recall</span>
+                <form class="form" method="post" action="<?= e(url('leave/recall')) ?>" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $request['id'] ?>">
+                    <label>
+                        <span>Recall reason *</span>
+                        <textarea name="recall_reason" rows="3" class="<?= has_field_error('recall_reason') ? 'is-invalid' : '' ?>" placeholder="Explain why the employee is being recalled" required><?= e(old('recall_reason')) ?></textarea>
+                        <?php if ($error = field_error('recall_reason')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                    </label>
+                    <label>
+                        <span>Official recall letter (PDF) *</span>
+                        <input type="file" name="recall_attachment" accept=".pdf,application/pdf" class="<?= has_field_error('recall_attachment') ? 'is-invalid' : '' ?>" required>
+                        <?php if ($error = field_error('recall_attachment')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
+                        <small>Upload the signed PDF recall letter for the employee record.</small>
+                    </label>
+                    <button class="btn btn-primary" type="submit">Recall from Leave</button>
+                </form>
             </div>
         <?php endif; ?>
 

@@ -395,6 +395,12 @@ class LeaveController
             return;
         }
 
+        $recalledByName = null;
+        if (!empty($request['recalled_by_user_id'])) {
+            $recalledBy = User::find((int) $request['recalled_by_user_id']);
+            $recalledByName = $recalledBy['full_name'] ?? null;
+        }
+
         view('leave/view', [
             'title' => 'Leave Request',
             'request' => $request,
@@ -403,6 +409,8 @@ class LeaveController
             'canForfeit' => $this->canForfeit($request),
             'canApprove' => $this->canApprove($request),
             'canMarkResumed' => $this->canMarkResumed($request),
+            'canRecall' => $this->canRecall($request),
+            'recalledByName' => $recalledByName,
             'reportBackDate' => LeaveBalanceService::returnDateAfter($request['end_date']),
         ]);
     }
@@ -651,6 +659,115 @@ class LeaveController
         exit;
     }
 
+    public function recall(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $request = LeaveRequest::find($id);
+        $actor = current_user();
+
+        if (!$request || !$this->canRecall($request)) {
+            set_flash('error', 'This leave request cannot be recalled.');
+            redirect('leave/history');
+        }
+
+        $reason = trim($_POST['recall_reason'] ?? '');
+        $errors = [];
+
+        if ($reason === '') {
+            $errors['recall_reason'] = 'Recall reason is required.';
+        }
+
+        $this->ensureRecallSchema();
+        $recallAttachmentPath = null;
+        if (!$errors) {
+            $recallAttachmentPath = $this->handleRecallAttachment($errors);
+        }
+
+        if ($errors) {
+            remember_form_state(['recall_reason' => $reason], $errors);
+            set_flash('error', 'Please correct the highlighted fields below.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        $recallDateTime = date('Y-m-d H:i:s');
+        $carryoverDays = 0.0;
+
+        try {
+            db()->beginTransaction();
+
+            if (!LeaveRequest::markRecalled($id, (int) $actor['id'], $reason, $recallAttachmentPath)) {
+                throw new RuntimeException('The leave request could not be recalled.');
+            }
+
+            $carryoverDays = $this->restoreUnusedLeaveBalance($request, date('Y-m-d'));
+            AuditService::record('recall_leave_request', 'leave_requests', $id);
+
+            db()->commit();
+        } catch (Throwable $throwable) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+
+            if ($recallAttachmentPath) {
+                $file = app_config('leave_recall_dir') . '/' . basename($recallAttachmentPath);
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+            }
+
+            app_log($throwable);
+            set_flash('error', 'Leave recall could not be recorded.');
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
+        $updatedRequest = LeaveRequest::find($id) ?? $request;
+        $recallData = [
+            'recalled_by_name' => $actor['full_name'] ?? 'your immediate supervisor',
+            'recalled_at' => $updatedRequest['recalled_at'] ?? $recallDateTime,
+            'reason' => $reason,
+            'carryover_days' => $carryoverDays,
+        ];
+
+        $internalMessage = $request['employee_name'] . ' has been officially recalled from leave by the immediate supervisor.';
+        if ($reason !== '') {
+            $internalMessage .= ' Reason: ' . $reason;
+        }
+        if ($carryoverDays > 0) {
+            $internalMessage .= ' ' . format_days($carryoverDays) . ' working day(s) were carried back to the leave balance.';
+        }
+
+        NotificationService::create(
+            (int) $request['employee_user_id'],
+            'Official leave recall issued',
+            $internalMessage,
+            url('leave/view') . '&id=' . $id
+        );
+        NotificationService::notifyRoles(
+            ['admin', 'hr'],
+            'Official leave recall issued',
+            $request['employee_name'] . ' was recalled from leave by the immediate supervisor.' . ($reason !== '' ? ' Reason: ' . $reason : ''),
+            url('leave/view') . '&id=' . $id
+        );
+
+        $emailSent = ExternalNotificationService::leaveRecallIssued($updatedRequest, $recallData);
+        $message = 'Leave recall recorded for ' . $request['employee_name'] . '.';
+        if ($carryoverDays > 0) {
+            $message .= ' ' . format_days($carryoverDays) . ' working day(s) were carried back to the leave balance.';
+        }
+        $message .= $emailSent
+            ? ' Email sent to staff member.'
+            : ' Email could not be sent to staff member.' . $this->emailFailureSuffix();
+
+        set_flash('success', $message);
+        header('Location: ' . url('leave/view') . '&id=' . $id);
+        exit;
+    }
+
     public function attachment(): void
     {
         require_auth();
@@ -699,6 +816,33 @@ class LeaveController
         $mime = mime_content_type($file) ?: 'application/octet-stream';
         header('Content-Type: ' . $mime);
         header('Content-Disposition: inline; filename="' . basename($file) . '"');
+        header('Content-Length: ' . filesize($file));
+        readfile($file);
+    }
+
+    public function recallAttachment(): void
+    {
+        require_auth();
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $request = LeaveRequest::find($id);
+
+        if (!$request || !$request['recall_attachment_path'] || !$this->canView($request)) {
+            http_response_code(404);
+            echo 'Recall attachment not found.';
+            return;
+        }
+
+        $file = app_config('leave_recall_dir') . '/' . basename($request['recall_attachment_path']);
+        if (!is_file($file)) {
+            http_response_code(404);
+            echo 'Recall attachment file missing.';
+            return;
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . basename($file) . '"');
+        header('X-Content-Type-Options: nosniff');
         header('Content-Length: ' . filesize($file));
         readfile($file);
     }
@@ -838,6 +982,50 @@ class LeaveController
         return $filename;
     }
 
+    private function handleRecallAttachment(array &$errors, ?string $existingAttachment = null): ?string
+    {
+        $file = $_FILES['recall_attachment'] ?? null;
+
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            if (!$existingAttachment) {
+                $errors['recall_attachment'] = 'Recall attachment is required and must be a PDF.';
+            }
+
+            return $existingAttachment;
+        }
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $errors['recall_attachment'] = 'Recall attachment upload failed.';
+            return null;
+        }
+
+        if ($file['size'] > (int) app_config('leave_recall_max_size')) {
+            $errors['recall_attachment'] = 'Recall attachment must not exceed 10 MB.';
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($extension, app_config('leave_recall_extensions'), true) || !uploaded_file_is_pdf($file)) {
+            $errors['recall_attachment'] = 'Recall attachment must be a PDF file.';
+            return null;
+        }
+
+        $uploadDir = app_config('leave_recall_dir');
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+
+        $filename = 'recall-' . date('YmdHis') . '-' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $destination = $uploadDir . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            $errors['recall_attachment'] = 'Could not save the recall attachment.';
+            return null;
+        }
+
+        return $filename;
+    }
+
     private function canEdit(array $request): bool
     {
         $user = current_user();
@@ -898,6 +1086,36 @@ class LeaveController
         return !empty($user['employee_id']) && (int) $request['supervisor_id'] === (int) $user['employee_id'];
     }
 
+    private function canRecall(array $request): bool
+    {
+        $user = current_user();
+        if (!$user || ($user['role'] ?? '') !== 'supervisor') {
+            return false;
+        }
+
+        if (($request['status'] ?? '') !== 'approved' || !empty($request['resumed_at']) || !empty($request['recalled_at'])) {
+            return false;
+        }
+
+        $today = strtotime(date('Y-m-d'));
+        $startDate = strtotime((string) ($request['start_date'] ?? ''));
+        $endDate = strtotime((string) ($request['end_date'] ?? ''));
+
+        if ($today < $startDate || $today > $endDate) {
+            return false;
+        }
+
+        if (!AccessScopeService::canAccessLeaveRequest($request, $user)) {
+            return false;
+        }
+
+        if (empty($request['supervisor_id'])) {
+            return true;
+        }
+
+        return !empty($user['employee_id']) && (int) $request['supervisor_id'] === (int) $user['employee_id'];
+    }
+
     private function canMarkResumed(array $request): bool
     {
         $user = current_user();
@@ -923,6 +1141,73 @@ class LeaveController
         $reportBackDate = LeaveBalanceService::returnDateAfter($request['end_date']);
 
         return strtotime(date('Y-m-d')) >= strtotime($reportBackDate);
+    }
+
+    private function ensureRecallSchema(): void
+    {
+        $hasColumn = static function (string $column): bool {
+            $stmt = db()->prepare(
+                "SELECT COUNT(*)
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'leave_requests'
+                   AND COLUMN_NAME = ?"
+            );
+            $stmt->execute([$column]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        };
+
+        $hasIndex = static function (string $index): bool {
+            $stmt = db()->prepare(
+                "SELECT COUNT(*)
+                 FROM INFORMATION_SCHEMA.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'leave_requests'
+                   AND INDEX_NAME = ?"
+            );
+            $stmt->execute([$index]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        };
+
+        $hasForeignKey = static function (string $constraint): bool {
+            $stmt = db()->prepare(
+                "SELECT COUNT(*)
+                 FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'leave_requests'
+                   AND CONSTRAINT_NAME = ?"
+            );
+            $stmt->execute([$constraint]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        };
+
+        $alterParts = [];
+
+        if (!$hasColumn('recalled_at')) {
+            $alterParts[] = 'ADD COLUMN recalled_at DATETIME NULL AFTER resumed_at';
+        }
+        if (!$hasColumn('recalled_by_user_id')) {
+            $alterParts[] = 'ADD COLUMN recalled_by_user_id INT UNSIGNED NULL AFTER recalled_at';
+        }
+        if (!$hasColumn('recall_reason')) {
+            $alterParts[] = 'ADD COLUMN recall_reason TEXT NULL AFTER recalled_by_user_id';
+        }
+        if (!$hasColumn('recall_attachment_path')) {
+            $alterParts[] = 'ADD COLUMN recall_attachment_path VARCHAR(255) NULL AFTER recall_reason';
+        }
+        if (!$hasIndex('idx_leave_requests_recalled_at')) {
+            $alterParts[] = 'ADD KEY idx_leave_requests_recalled_at (recalled_at)';
+        }
+        if (!$hasForeignKey('fk_leave_requests_recalled_by')) {
+            $alterParts[] = 'ADD CONSTRAINT fk_leave_requests_recalled_by FOREIGN KEY (recalled_by_user_id) REFERENCES users(id) ON DELETE SET NULL';
+        }
+
+        if ($alterParts) {
+            db()->exec('ALTER TABLE leave_requests ' . implode(', ', $alterParts));
+        }
     }
 
     private function canForfeit(array $request): bool
