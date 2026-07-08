@@ -491,6 +491,16 @@ class LeaveController
             exit;
         }
 
+        if (!empty($request['recalled_at'])) {
+            set_flash('error', 'This leave request has already been officially recalled by the supervisor.');
+            if ($selfReported) {
+                redirect('dashboard');
+            }
+
+            header('Location: ' . url('leave/view') . '&id=' . $id);
+            exit;
+        }
+
         if ($selfReported && strtotime(date('Y-m-d')) < strtotime((string) $request['start_date'])) {
             set_flash('error', 'You can only report back after your leave has started.');
             redirect('dashboard');
@@ -1123,6 +1133,10 @@ class LeaveController
         }
 
         if ($request['status'] !== 'approved' || !empty($request['resumed_at'])) {
+            return false;
+        }
+
+        if (!empty($request['recalled_at'])) {
             return false;
         }
 

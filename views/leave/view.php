@@ -130,7 +130,7 @@
                             </form>
                         <?php endif; ?>
                     <?php else: ?>
-                        <p>The leave has been recorded as reported back following the official recall.</p>
+                        <p>The leave has been officially recalled by the supervisor. A separate report-back record has not been logged.</p>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>

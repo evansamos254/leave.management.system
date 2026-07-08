@@ -455,6 +455,7 @@ function status_badge_class(string $status): string
 
     return match ($status) {
         'approved' => 'success',
+        'recalled' => 'warning',
         'rejected', 'cancelled', 'forfeited' => 'danger',
         default => $status,
     };

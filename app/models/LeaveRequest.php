@@ -492,22 +492,16 @@ class LeaveRequest
     public static function markRecalled(int $id, int $userId, ?string $reason = null, ?string $attachmentPath = null): bool
     {
         $notes = trim((string) $reason);
-        $recallNotes = $notes !== ''
-            ? 'Recalled from leave by immediate supervisor. Reason: ' . $notes
-            : 'Recalled from leave by immediate supervisor.';
 
         $stmt = db()->prepare(
             "UPDATE leave_requests
              SET recalled_at = NOW(),
                  recalled_by_user_id = ?,
                  recall_reason = ?,
-                 recall_attachment_path = ?,
-                 resumed_at = NOW(),
-                 resumed_by_user_id = ?,
-                 resumption_notes = ?
+                 recall_attachment_path = ?
              WHERE id = ? AND status = 'approved' AND resumed_at IS NULL AND recalled_at IS NULL"
         );
-        $stmt->execute([$userId, $notes !== '' ? $notes : null, $attachmentPath, $userId, $recallNotes, $id]);
+        $stmt->execute([$userId, $notes !== '' ? $notes : null, $attachmentPath, $id]);
 
         return $stmt->rowCount() > 0;
     }
