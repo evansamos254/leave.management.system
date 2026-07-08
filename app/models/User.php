@@ -170,7 +170,7 @@ class User
         $stmt->execute([$filename, $id]);
     }
 
-    public static function allWithEmployees(?array $viewer = null): array
+    public static function allWithEmployees(?array $viewer = null, ?int $directorateId = null, ?int $departmentId = null): array
     {
         $params = [];
         $scope = AccessScopeService::employeeScopeSql('e', $viewer, $params);
@@ -188,7 +188,19 @@ class User
              LEFT JOIN users su ON su.id = se.user_id
              WHERE 1 = 1'
             . $scope
-            . ' ORDER BY u.created_at DESC';
+            ;
+
+        if ($directorateId !== null && $directorateId > 0) {
+            $sql .= ' AND d.directorate_id = ?';
+            $params[] = $directorateId;
+        }
+
+        if ($departmentId !== null && $departmentId > 0) {
+            $sql .= ' AND e.department_id = ?';
+            $params[] = $departmentId;
+        }
+
+        $sql .= ' ORDER BY u.created_at DESC';
 
         $stmt = db()->prepare($sql);
         $stmt->execute($params);

@@ -10,6 +10,47 @@
         </div>
     </div>
 
+    <form class="filter-bar" method="get" action="index.php">
+        <input type="hidden" name="route" value="admin/users">
+        <label>
+            <span>Directorate</span>
+            <select name="directorate_id" data-directorate-select data-allow-all-departments="true">
+                <option value="">All directorates</option>
+                <?php foreach ($directorates as $directorate): ?>
+                    <option value="<?= e((string) $directorate['id']) ?>" <?= (int) $directorateId === (int) $directorate['id'] ? 'selected' : '' ?>>
+                        <?= e($directorate['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
+            <span>Department</span>
+            <select name="department_id" data-department-select>
+                <option value="">All departments</option>
+                <?php foreach ($departments as $department): ?>
+                    <option
+                        value="<?= e((string) $department['id']) ?>"
+                        data-directorate-id="<?= e((string) ($department['directorate_id'] ?? '')) ?>"
+                        <?= (int) $departmentId === (int) $department['id'] ? 'selected' : '' ?>
+                    >
+                        <?= e($department['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <button class="btn btn-ghost" type="submit">Filter</button>
+        <a class="btn btn-ghost" href="<?= e(url('admin/users')) ?>">Reset</a>
+    </form>
+
+    <?php if (!empty($selectedDirectorate) || !empty($selectedDepartment)): ?>
+        <p class="muted">
+            Showing users in
+            <?= e($selectedDirectorate['name'] ?? 'all directorates') ?>
+            /
+            <?= e($selectedDepartment['name'] ?? 'all departments') ?>.
+        </p>
+    <?php endif; ?>
+
     <div class="table-wrap">
         <table>
             <thead>

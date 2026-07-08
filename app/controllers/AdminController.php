@@ -13,14 +13,94 @@ class AdminController
     {
         require_role($this->profileManagers);
         $user = current_user();
+        $filters = $this->userFiltersFromRequest($user);
+        $selectedDepartment = $filters['department_id'] ? Department::find($filters['department_id']) : null;
+        $selectedDirectorate = $this->selectedDirectorate($filters, $selectedDepartment);
 
         view('admin/users', [
             'title' => 'User Managements',
-            'users' => User::allWithEmployees($user),
+            'users' => User::allWithEmployees($user, $filters['directorate_id'] ?: null, $filters['department_id'] ?: null),
             'approvers' => Employee::approvers($user),
             'roles' => $user['role'] === 'admin' ? $this->roles : ['employee'],
             'statuses' => $this->statuses,
+            'directorates' => $this->visibleDirectorates($user),
+            'departments' => $this->visibleDepartments($user),
+            'directorateId' => $filters['directorate_id'],
+            'departmentId' => $filters['department_id'],
+            'selectedDirectorate' => $selectedDirectorate,
+            'selectedDepartment' => $selectedDepartment,
         ]);
+    }
+
+    private function userFiltersFromRequest(array $user): array
+    {
+        $directorateId = (int) ($_GET['directorate_id'] ?? 0);
+        $departmentId = (int) ($_GET['department_id'] ?? 0);
+
+        if ($directorateId > 0 && !Directorate::find($directorateId)) {
+            $directorateId = 0;
+        }
+
+        if ($departmentId > 0 && !Department::find($departmentId)) {
+            $departmentId = 0;
+        }
+
+        if ($directorateId > 0 && $departmentId > 0 && !Department::belongsToDirectorate($departmentId, $directorateId)) {
+            $departmentId = 0;
+        }
+
+        return AccessScopeService::forcedFilters([
+            'directorate_id' => $directorateId,
+            'department_id' => $departmentId,
+        ], $user);
+    }
+
+    private function selectedDirectorate(array $filters, ?array $department): ?array
+    {
+        if (!empty($filters['directorate_id'])) {
+            return Directorate::find((int) $filters['directorate_id']);
+        }
+
+        if ($department && !empty($department['directorate_id'])) {
+            return [
+                'id' => $department['directorate_id'],
+                'name' => $department['directorate_name'] ?? 'Selected department',
+            ];
+        }
+
+        return null;
+    }
+
+    private function visibleDirectorates(array $user): array
+    {
+        if (!AccessScopeService::isDepartmentScoped($user)) {
+            return Directorate::all();
+        }
+
+        $directorateId = AccessScopeService::directorateId($user);
+        if (!$directorateId) {
+            return [];
+        }
+
+        $directorate = Directorate::find($directorateId);
+
+        return $directorate ? [$directorate] : [];
+    }
+
+    private function visibleDepartments(array $user): array
+    {
+        if (!AccessScopeService::isDepartmentScoped($user)) {
+            return Department::all();
+        }
+
+        $departmentId = AccessScopeService::departmentId($user);
+        if (!$departmentId) {
+            return [];
+        }
+
+        $department = Department::find($departmentId);
+
+        return $department ? [$department] : [];
     }
 
     public function leaveRequests(): void
