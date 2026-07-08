@@ -1171,6 +1171,21 @@ class LeaveController
             return (int) $stmt->fetchColumn() > 0;
         };
 
+        $columnInfo = static function (string $column): ?array {
+            $stmt = db()->prepare(
+                "SELECT DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'leave_requests'
+                   AND COLUMN_NAME = ?
+                 LIMIT 1"
+            );
+            $stmt->execute([$column]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return $row ?: null;
+        };
+
         $hasIndex = static function (string $index): bool {
             $stmt = db()->prepare(
                 "SELECT COUNT(*)
@@ -1184,19 +1199,34 @@ class LeaveController
             return (int) $stmt->fetchColumn() > 0;
         };
 
+        $tableEngine = static function (): ?string {
+            $stmt = db()->prepare(
+                "SELECT ENGINE
+                 FROM INFORMATION_SCHEMA.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'leave_requests'
+                 LIMIT 1"
+            );
+            $stmt->execute();
+            $engine = $stmt->fetchColumn();
+
+            return $engine !== false ? (string) $engine : null;
+        };
+
         $hasForeignKey = static function (string $constraint): bool {
             $stmt = db()->prepare(
                 "SELECT COUNT(*)
                  FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
                  WHERE CONSTRAINT_SCHEMA = DATABASE()
                    AND TABLE_NAME = 'leave_requests'
-                   AND CONSTRAINT_NAME = ?"
+                 AND CONSTRAINT_NAME = ?"
             );
             $stmt->execute([$constraint]);
 
             return (int) $stmt->fetchColumn() > 0;
         };
 
+        $recalledByInfo = $columnInfo('recalled_by_user_id');
         $alterParts = [];
 
         if (!$hasColumn('recalled_at')) {
@@ -1204,6 +1234,8 @@ class LeaveController
         }
         if (!$hasColumn('recalled_by_user_id')) {
             $alterParts[] = 'ADD COLUMN recalled_by_user_id INT UNSIGNED NULL AFTER recalled_at';
+        } elseif ($recalledByInfo && stripos((string) ($recalledByInfo['COLUMN_TYPE'] ?? ''), 'unsigned') === false) {
+            $alterParts[] = 'MODIFY COLUMN recalled_by_user_id INT UNSIGNED NULL';
         }
         if (!$hasColumn('recall_reason')) {
             $alterParts[] = 'ADD COLUMN recall_reason TEXT NULL AFTER recalled_by_user_id';
@@ -1214,12 +1246,39 @@ class LeaveController
         if (!$hasIndex('idx_leave_requests_recalled_at')) {
             $alterParts[] = 'ADD KEY idx_leave_requests_recalled_at (recalled_at)';
         }
-        if (!$hasForeignKey('fk_leave_requests_recalled_by')) {
-            $alterParts[] = 'ADD CONSTRAINT fk_leave_requests_recalled_by FOREIGN KEY (recalled_by_user_id) REFERENCES users(id) ON DELETE SET NULL';
+
+        if (($recalledByInfo !== null || $hasColumn('recalled_by_user_id')) && $hasColumn('recalled_by_user_id')) {
+            try {
+                db()->exec(
+                    'UPDATE leave_requests lr
+                     LEFT JOIN users u ON u.id = lr.recalled_by_user_id
+                     SET lr.recalled_by_user_id = NULL
+                     WHERE lr.recalled_by_user_id IS NOT NULL
+                       AND (lr.recalled_by_user_id <= 0 OR u.id IS NULL)'
+                );
+            } catch (Throwable $throwable) {
+                app_log($throwable);
+            }
+        }
+
+        if ($tableEngine() !== null && strcasecmp((string) $tableEngine(), 'InnoDB') !== 0) {
+            $alterParts[] = 'ENGINE=InnoDB';
         }
 
         if ($alterParts) {
-            db()->exec('ALTER TABLE leave_requests ' . implode(', ', $alterParts));
+            try {
+                db()->exec('ALTER TABLE leave_requests ' . implode(', ', $alterParts));
+            } catch (Throwable $throwable) {
+                app_log($throwable);
+            }
+        }
+
+        if (!$hasForeignKey('fk_leave_requests_recalled_by')) {
+            try {
+                db()->exec('ALTER TABLE leave_requests ADD CONSTRAINT fk_leave_requests_recalled_by FOREIGN KEY (recalled_by_user_id) REFERENCES users(id) ON DELETE SET NULL');
+            } catch (Throwable $throwable) {
+                app_log($throwable);
+            }
         }
     }
 
