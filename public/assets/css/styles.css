@@ -1517,6 +1517,22 @@ input[readonly] {
 .note-box { margin: 16px 0; }
 .note-box p { margin: 8px 0 0; }
 
+.recall-preview {
+    margin: 14px 0 12px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+}
+
+.recall-preview-meta {
+    margin-top: 12px;
+}
+
+.recall-preview-message {
+    margin-top: 12px;
+    white-space: pre-line;
+    color: var(--ink);
+}
+
 .document-preview {
     min-height: 420px;
     padding: 10px;

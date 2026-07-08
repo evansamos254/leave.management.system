@@ -238,11 +238,27 @@ class ExternalNotificationService
         $recalledBy = trim((string) ($recall['recalled_by_name'] ?? 'your immediate supervisor'));
         $recalledAt = format_date($recall['recalled_at'] ?? null);
         $reason = trim((string) ($recall['reason'] ?? ''));
+        $reportBackDate = format_date(LeaveBalanceService::returnDateAfter((string) ($request['end_date'] ?? date('Y-m-d'))));
+        $attachments = [];
+        $recallAttachmentPath = trim((string) ($request['recall_attachment_path'] ?? ''));
+        if ($recallAttachmentPath !== '') {
+            $file = app_config('leave_recall_dir') . '/' . basename($recallAttachmentPath);
+            if (is_file($file)) {
+                $attachments[] = [
+                    'path' => $file,
+                    'name' => 'Official recall letter.pdf',
+                ];
+            }
+        }
 
         $message = 'Your leave has been officially recalled by ' . ($recalledBy !== '' ? $recalledBy : 'your immediate supervisor') . '.';
 
         if ($recalledAt !== 'N/A') {
             $message .= PHP_EOL . 'Recall date: ' . $recalledAt;
+        }
+
+        if ($reportBackDate !== 'N/A') {
+            $message .= PHP_EOL . 'Expected report-back date: ' . $reportBackDate;
         }
 
         if ($reason !== '') {
@@ -253,6 +269,7 @@ class ExternalNotificationService
             $message .= PHP_EOL . 'Unused leave restored: ' . format_days($recall['carryover_days']);
         }
 
+        $message .= PHP_EOL . 'The official recall letter is attached to this email.';
         $message .= PHP_EOL . 'Please log in to view the official recall letter and leave update.';
 
         return self::sendToContact(
@@ -262,7 +279,8 @@ class ExternalNotificationService
             'Official leave recall notice',
             $message,
             'Leave recall notice sent.',
-            self::leaveLink($request, 'leave/view')
+            self::leaveLink($request, 'leave/view'),
+            $attachments
         );
     }
 
@@ -353,9 +371,10 @@ class ExternalNotificationService
         string $subject,
         string $message,
         ?string $logMessage = null,
-        ?string $actionLink = null
+        ?string $actionLink = null,
+        array $attachments = []
     ): bool {
-        $emailSent = self::sendEmail($email, $subject, $message, $logMessage, $actionLink);
+        $emailSent = self::sendEmail($email, $subject, $message, $logMessage, $actionLink, $attachments);
 
         $normalizedPhone = normalize_kenyan_phone_number($phone);
         if ($normalizedPhone !== null) {
@@ -370,7 +389,8 @@ class ExternalNotificationService
         string $subject,
         string $message,
         ?string $logMessage = null,
-        ?string $actionLink = null
+        ?string $actionLink = null,
+        array $attachments = []
     ): bool
     {
         $config = app_config('notifications', [])['email'] ?? [];
@@ -397,15 +417,9 @@ class ExternalNotificationService
         $fromName = $config['from_name'] ?? app_config('name', 'Busia County Leave System');
 
         if (($config['transport'] ?? 'mail') === 'smtp') {
-            $sent = self::sendSmtpEmail($email, $subject, $message, $from, $fromName, $config['smtp'] ?? []);
+            $sent = self::sendSmtpEmail($email, $subject, $message, $from, $fromName, $config['smtp'] ?? [], $attachments);
         } else {
-            $headers = [
-                'From: ' . $from,
-                'Reply-To: ' . $from,
-                'Content-Type: text/plain; charset=UTF-8',
-            ];
-
-            $sent = @mail($email, $subject, $message, implode(PHP_EOL, $headers));
+            $sent = self::sendMailEmail($email, $subject, $message, $from, $fromName, $attachments);
         }
 
         $status = $sent ? 'sent' : 'failed' . (self::$lastEmailError !== '' ? ' (' . self::$lastEmailError . ')' : '');
@@ -420,7 +434,8 @@ class ExternalNotificationService
         string $message,
         string $from,
         string $fromName,
-        array $smtp
+        array $smtp,
+        array $attachments = []
     ): bool {
         if (empty($smtp['host']) || empty($smtp['username']) || empty($smtp['password'])) {
             self::$lastEmailError = 'SMTP host, username, or password is missing';
@@ -429,12 +444,23 @@ class ExternalNotificationService
 
         $attempts = self::smtpAttempts($smtp);
         foreach ($attempts as $attempt) {
-            if (self::sendSmtpAttempt($email, $subject, $message, $from, $fromName, $attempt)) {
+            if (self::sendMailerAttempt($email, $subject, $message, $from, $fromName, $attempt, true, $attachments)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static function sendMailEmail(
+        string $email,
+        string $subject,
+        string $message,
+        string $from,
+        string $fromName,
+        array $attachments = []
+    ): bool {
+        return self::sendMailerAttempt($email, $subject, $message, $from, $fromName, [], false, $attachments);
     }
 
     private static function smtpAttempts(array $smtp): array
@@ -462,37 +488,57 @@ class ExternalNotificationService
         return $attempts;
     }
 
-    private static function sendSmtpAttempt(
+    private static function sendMailerAttempt(
         string $email,
         string $subject,
         string $message,
         string $from,
         string $fromName,
-        array $smtp
+        array $smtp,
+        bool $useSmtp,
+        array $attachments = []
     ): bool {
         try {
             $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = (string) $smtp['host'];
-            $mail->SMTPAuth = true;
-            $mail->Username = (string) $smtp['username'];
-            $mail->Password = (string) $smtp['password'];
-            $mail->Port = (int) ($smtp['port'] ?? 587);
-            $mail->Timeout = (int) ($smtp['timeout'] ?? 15);
-            $mail->CharSet = 'UTF-8';
+            if ($useSmtp) {
+                $mail->isSMTP();
+                $mail->Host = (string) $smtp['host'];
+                $mail->SMTPAuth = true;
+                $mail->Username = (string) $smtp['username'];
+                $mail->Password = (string) $smtp['password'];
+                $mail->Port = (int) ($smtp['port'] ?? 587);
+                $mail->Timeout = (int) ($smtp['timeout'] ?? 15);
 
-            $encryption = strtolower((string) ($smtp['encryption'] ?? 'tls'));
-            if ($encryption === 'tls') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            } elseif ($encryption === 'ssl') {
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+                $encryption = strtolower((string) ($smtp['encryption'] ?? 'tls'));
+                if ($encryption === 'tls') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                } elseif ($encryption === 'ssl') {
+                    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+                }
+            } else {
+                $mail->isMail();
             }
 
+            $mail->CharSet = 'UTF-8';
             $mail->setFrom($from, $fromName);
             $mail->addAddress($email);
             $mail->isHTML(false);
             $mail->Subject = $subject;
             $mail->Body = $message;
+
+            foreach ($attachments as $attachment) {
+                $path = trim((string) ($attachment['path'] ?? ''));
+                if ($path === '' || !is_file($path) || !is_readable($path)) {
+                    continue;
+                }
+
+                $name = trim((string) ($attachment['name'] ?? ''));
+                if ($name === '') {
+                    $name = basename($path);
+                }
+
+                $mail->addAttachment($path, $name);
+            }
 
             return $mail->send();
         } catch (Throwable $throwable) {

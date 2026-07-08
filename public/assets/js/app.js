@@ -405,6 +405,48 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlanner();
     }
 
+    const recallPreview = document.querySelector('[data-recall-preview]');
+
+    if (recallPreview) {
+        const formScope = recallPreview.closest('.note-box') || document;
+        const reasonInput = formScope.querySelector('[data-recall-reason-input]');
+        const attachmentInput = formScope.querySelector('[data-recall-attachment-input]');
+        const messageBox = recallPreview.querySelector('[data-recall-preview-message]');
+        const attachmentBox = recallPreview.querySelector('[data-recall-preview-attachment]');
+        const employeeName = recallPreview.dataset.recallEmployee || 'the employee';
+        const supervisorName = recallPreview.dataset.recallSupervisor || 'Immediate supervisor';
+        const leaveType = recallPreview.dataset.recallLeaveType || 'leave';
+        const leavePeriod = recallPreview.dataset.recallLeavePeriod || '-';
+        const reportBack = recallPreview.dataset.recallReportBack || '-';
+
+        function updateRecallPreview() {
+            const reason = reasonInput ? reasonInput.value.trim() : '';
+            const attachmentName = attachmentInput && attachmentInput.files && attachmentInput.files.length > 0
+                ? attachmentInput.files[0].name
+                : 'Not selected yet';
+
+            if (attachmentBox) {
+                attachmentBox.textContent = attachmentName;
+            }
+
+            if (messageBox) {
+                messageBox.textContent = reason
+                    ? `Hello ${employeeName},\n\nYour ${leaveType} leave has been officially recalled by ${supervisorName}.\nLeave period: ${leavePeriod}\nExpected report-back date: ${reportBack}\nReason: ${reason}\n\nThe signed recall letter will be attached to this email and stored in the employee record.`
+                    : `Type a recall reason to preview the official recall notice.\n\nLeave period: ${leavePeriod}\nExpected report-back date: ${reportBack}\n\nThe signed PDF recall letter uploaded below will be attached to the email.`;
+            }
+        }
+
+        if (reasonInput) {
+            reasonInput.addEventListener('input', updateRecallPreview);
+        }
+
+        if (attachmentInput) {
+            attachmentInput.addEventListener('change', updateRecallPreview);
+        }
+
+        updateRecallPreview();
+    }
+
     const menuToggles = document.querySelectorAll('[data-menu-toggle]');
     const mobileSidebar = document.querySelector('[data-mobile-sidebar]');
     const menuOverlay = document.querySelector('[data-menu-overlay]');

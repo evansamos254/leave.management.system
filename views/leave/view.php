@@ -139,17 +139,49 @@
         <?php if (!empty($canRecall)): ?>
             <div class="note-box" id="official-recall-form">
                 <span>Official Recall</span>
+                <div
+                    class="recall-preview"
+                    data-recall-preview
+                    data-recall-employee="<?= e($request['employee_name']) ?>"
+                    data-recall-supervisor="<?= e(current_user()['full_name'] ?? 'Immediate supervisor') ?>"
+                    data-recall-leave-type="<?= e($request['leave_type_name']) ?>"
+                    data-recall-leave-period="<?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?>"
+                    data-recall-report-back="<?= e(format_date($reportBackDate)) ?>"
+                >
+                    <span>Recall Preview</span>
+                    <div class="approval-meta recall-preview-meta">
+                        <div>
+                            <span>Leave period</span>
+                            <strong><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></strong>
+                        </div>
+                        <div>
+                            <span>Expected report-back date</span>
+                            <strong><?= e(format_date($reportBackDate)) ?></strong>
+                        </div>
+                        <div>
+                            <span>Recalled by</span>
+                            <strong><?= e(current_user()['full_name'] ?? 'Immediate supervisor') ?></strong>
+                        </div>
+                        <div>
+                            <span>Attachment</span>
+                            <strong data-recall-preview-attachment>Not selected yet</strong>
+                        </div>
+                    </div>
+                    <p class="recall-preview-message" data-recall-preview-message>
+                        Type a recall reason to preview the official notice that will be emailed with the signed PDF letter attached.
+                    </p>
+                </div>
                 <form class="form" method="post" action="<?= e(url('leave/recall')) ?>" enctype="multipart/form-data">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= (int) $request['id'] ?>">
                     <label>
                         <span>Recall reason *</span>
-                        <textarea name="recall_reason" rows="3" class="<?= has_field_error('recall_reason') ? 'is-invalid' : '' ?>" placeholder="Explain why the employee is being recalled" required><?= e(old('recall_reason')) ?></textarea>
+                        <textarea name="recall_reason" rows="3" class="<?= has_field_error('recall_reason') ? 'is-invalid' : '' ?>" placeholder="Explain why the employee is being recalled" data-recall-reason-input required><?= e(old('recall_reason')) ?></textarea>
                         <?php if ($error = field_error('recall_reason')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                     </label>
                     <label>
                         <span>Official recall letter (PDF) *</span>
-                        <input type="file" name="recall_attachment" accept=".pdf,application/pdf" class="<?= has_field_error('recall_attachment') ? 'is-invalid' : '' ?>" required>
+                        <input type="file" name="recall_attachment" accept=".pdf,application/pdf" class="<?= has_field_error('recall_attachment') ? 'is-invalid' : '' ?>" data-recall-attachment-input required>
                         <?php if ($error = field_error('recall_attachment')): ?><small class="field-error"><?= e($error) ?></small><?php endif; ?>
                         <small>Upload the signed PDF recall letter for the employee record.</small>
                     </label>
