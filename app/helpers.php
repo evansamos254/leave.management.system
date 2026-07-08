@@ -572,7 +572,29 @@ function leave_gender_label(?string $eligibility): string
 
 function format_date(?string $date): string
 {
-    return $date ? date('d M Y', strtotime($date)) : '-';
+    $date = trim((string) $date);
+    if ($date === '' || preg_match('/^0{4}-0{2}-0{2}(?:\s0{2}:0{2}:0{2})?$/', $date) === 1) {
+        return '-';
+    }
+
+    $timestamp = strtotime($date);
+    if ($timestamp === false || $timestamp <= 0) {
+        return '-';
+    }
+
+    return date('d M Y', $timestamp);
+}
+
+function has_official_leave_recall(array $request): bool
+{
+    $recalledAt = trim((string) ($request['recalled_at'] ?? ''));
+    if ($recalledAt === '' || preg_match('/^0{4}-0{2}-0{2}(?:\s0{2}:0{2}:0{2})?$/', $recalledAt) === 1) {
+        return false;
+    }
+
+    return !empty($request['recalled_by_user_id'])
+        || trim((string) ($request['recall_reason'] ?? '')) !== ''
+        || trim((string) ($request['recall_attachment_path'] ?? '')) !== '';
 }
 
 function is_valid_past_or_today_date(string $date): bool

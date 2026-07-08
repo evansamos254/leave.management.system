@@ -5,11 +5,11 @@
                 <p class="eyebrow">Request #<?= (int) $request['id'] ?></p>
                 <h2><?= e($request['leave_type_name']) ?></h2>
             </div>
-            <?php $displayStatus = !empty($request['recalled_at']) ? 'recalled' : $request['status']; ?>
-            <span class="badge <?= e(!empty($request['recalled_at']) ? 'warning' : status_badge_class($request['status'])) ?>">
+            <?php $hasRecall = has_official_leave_recall($request); $displayStatus = $hasRecall ? 'recalled' : $request['status']; ?>
+            <span class="badge <?= e($hasRecall ? 'warning' : status_badge_class($request['status'])) ?>">
                 <?= e(status_label($displayStatus)) ?>
             </span>
-            <?php if (!empty($request['recalled_at'])): ?>
+            <?php if ($hasRecall): ?>
                 <span class="badge warning">Recalled</span>
             <?php endif; ?>
         </div>
@@ -49,7 +49,7 @@
             </div>
         </div>
 
-        <?php if (!empty($canRecall) && empty($request['recalled_at'])): ?>
+        <?php if (!empty($canRecall) && !has_official_leave_recall($request)): ?>
             <div class="note-box">
                 <span>Official Recall</span>
                 <p>The immediate supervisor can recall this approved leave request. Upload the signed PDF recall letter to make the action official and notify the staff member.</p>
@@ -86,7 +86,7 @@
         <?php if ($request['status'] === 'approved'): ?>
             <div class="note-box">
                 <span>Return / Resumption</span>
-                <?php if (!empty($request['recalled_at'])): ?>
+                <?php if ($hasRecall): ?>
                     <p>
                         <strong>Recall notice:</strong>
                         This leave was recalled on <?= e(format_date($request['recalled_at'])) ?>
@@ -116,7 +116,7 @@
                         <p><?= nl2br(e($request['resumption_notes'])) ?></p>
                     <?php endif; ?>
                 <?php else: ?>
-                    <?php if (empty($request['recalled_at'])): ?>
+                    <?php if (!$hasRecall): ?>
                         <p>Expected report-back date: <?= e(format_date($reportBackDate ?? null)) ?>.</p>
                         <?php if (!empty($canMarkResumed)): ?>
                             <form class="form" method="post" action="<?= e(url('leave/resume')) ?>">

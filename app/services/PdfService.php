@@ -42,7 +42,7 @@ class PdfService
         $status = (string) ($request['status'] ?? '');
         $approved = $status === 'approved';
         $forfeited = $status === 'forfeited';
-        $recalled = !empty($request['recalled_at']);
+        $recalled = has_official_leave_recall($request);
         $supervisorStep = $this->stepForRole($steps, 'supervisor');
         $statusLabel = $recalled ? 'Recalled' : status_label($status);
         $reportBackDate = $approved ? LeaveBalanceService::returnDateAfter((string) $request['end_date']) : '-';

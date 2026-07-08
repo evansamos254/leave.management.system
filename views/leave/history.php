@@ -71,9 +71,9 @@
                         <td><?= e(format_date($request['start_date'])) ?> to <?= e(format_date($request['end_date'])) ?></td>
                         <td><?= e(format_days($request['days_requested'])) ?></td>
                         <td>
-                            <?php $displayStatus = !empty($request['recalled_at']) ? 'recalled' : $request['status']; ?>
-                            <span class="badge <?= e(!empty($request['recalled_at']) ? 'warning' : status_badge_class($request['status'])) ?>"><?= e(status_label($displayStatus)) ?></span>
-                            <?php if (!empty($request['recalled_at'])): ?>
+                            <?php $hasRecall = has_official_leave_recall($request); $displayStatus = $hasRecall ? 'recalled' : $request['status']; ?>
+                            <span class="badge <?= e($hasRecall ? 'warning' : status_badge_class($request['status'])) ?>"><?= e(status_label($displayStatus)) ?></span>
+                            <?php if ($hasRecall): ?>
                                 <small class="badge warning">Recalled <?= e(format_date($request['recalled_at'])) ?></small>
                                 <?php if (!empty($request['recalled_by_name'])): ?>
                                     <small>By <?= e($request['recalled_by_name']) ?></small>

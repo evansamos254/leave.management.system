@@ -74,8 +74,9 @@
             <?php else: ?>
                 <?php foreach ($requests as $request): ?>
                     <?php
-                    $displayStatus = !empty($request['recalled_at']) ? 'recalled' : $request['status'];
-                    $statusClass = !empty($request['recalled_at']) ? 'warning' : status_badge_class($request['status']);
+                    $hasRecall = has_official_leave_recall($request);
+                    $displayStatus = $hasRecall ? 'recalled' : $request['status'];
+                    $statusClass = $hasRecall ? 'warning' : status_badge_class($request['status']);
                     ?>
                     <tr>
                         <td>
@@ -90,7 +91,7 @@
                         <td><?= e(format_days($request['days_requested'])) ?></td>
                         <td>
                             <span class="badge <?= e($statusClass) ?>"><?= e(status_label($displayStatus)) ?></span>
-                            <?php if (!empty($request['recalled_at'])): ?>
+                            <?php if ($hasRecall): ?>
                                 <small class="badge warning">Recalled <?= e(format_date($request['recalled_at'])) ?></small>
                                 <?php if (!empty($request['recalled_by_name'])): ?>
                                     <small>By <?= e($request['recalled_by_name']) ?></small>
@@ -115,7 +116,7 @@
                         <td>
                             <a class="btn btn-small" href="<?= e(url('leave/view')) ?>&id=<?= (int) $request['id'] ?>">View</a>
                             <a class="btn btn-small btn-ghost" href="<?= e(url('leave/pdf')) ?>&id=<?= (int) $request['id'] ?>">PDF</a>
-                            <?php if (($viewer['role'] ?? '') === 'supervisor' && $request['status'] === 'approved' && empty($request['recalled_at']) && empty($request['resumed_at'])): ?>
+                            <?php if (($viewer['role'] ?? '') === 'supervisor' && $request['status'] === 'approved' && !has_official_leave_recall($request) && empty($request['resumed_at'])): ?>
                                 <a class="btn btn-small btn-warning" href="<?= e(url('leave/view')) ?>&id=<?= (int) $request['id'] ?>#official-recall-form">Recall</a>
                             <?php endif; ?>
                             <?php if (!empty($request['recall_attachment_path'])): ?>

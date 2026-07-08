@@ -396,9 +396,9 @@ class LeaveController
         }
 
         $recalledByName = null;
-        if (!empty($request['recalled_by_name'])) {
+        if (has_official_leave_recall($request) && !empty($request['recalled_by_name'])) {
             $recalledByName = $request['recalled_by_name'];
-        } elseif (!empty($request['recalled_by_user_id'])) {
+        } elseif (has_official_leave_recall($request) && !empty($request['recalled_by_user_id'])) {
             $recalledBy = User::find((int) $request['recalled_by_user_id']);
             $recalledByName = $recalledBy['full_name'] ?? null;
         }
@@ -491,7 +491,7 @@ class LeaveController
             exit;
         }
 
-        if (!empty($request['recalled_at'])) {
+        if (has_official_leave_recall($request)) {
             set_flash('error', 'This leave request has already been officially recalled by the supervisor.');
             if ($selfReported) {
                 redirect('dashboard');
@@ -1110,7 +1110,7 @@ class LeaveController
             return false;
         }
 
-        if (($request['status'] ?? '') !== 'approved' || !empty($request['resumed_at']) || !empty($request['recalled_at'])) {
+        if (($request['status'] ?? '') !== 'approved' || !empty($request['resumed_at']) || has_official_leave_recall($request)) {
             return false;
         }
 
