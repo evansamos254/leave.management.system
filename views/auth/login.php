@@ -50,11 +50,19 @@
                         </button>
                     </div>
                 </label>
+                <input type="hidden" name="use_otp" value="0">
+                <label class="auth-toggle">
+                    <input type="checkbox" name="use_otp" value="1" checked>
+                    <div>
+                        <span>Use login verification code</span>
+                        <small>Uncheck this to sign in directly without 2FA for this login.</small>
+                    </div>
+                </label>
                 <button class="btn btn-primary btn-block" type="submit">Login</button>
             </form>
 
             <p class="muted auth-note">
-                A verification code will be sent to your registered email before access is granted.
+                Login verification is available for all users and can be turned on or off at sign-in.
             </p>
 
             <div class="auth-link-row">

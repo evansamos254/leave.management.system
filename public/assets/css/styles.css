@@ -641,6 +641,41 @@ td small { display: block; color: var(--muted); }
 .auth-footer a,
 .auth-link-row a { color: var(--blue); font-weight: 600; }
 
+.auth-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #FAFBFC;
+}
+
+.auth-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--blue);
+    flex: 0 0 auto;
+}
+
+.auth-toggle span {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.auth-toggle small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
 .auth-link-row {
     display: flex;
     align-items: center;

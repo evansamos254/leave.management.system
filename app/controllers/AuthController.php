@@ -72,6 +72,15 @@ class AuthController
             redirect('login');
         }
 
+        $useOtp = array_key_exists('use_otp', $_POST)
+            ? (string) ($_POST['use_otp'] ?? '0') === '1'
+            : true;
+
+        if (!$useOtp) {
+            $this->clearPendingLoginOtp();
+            $this->completeLogin($user);
+        }
+
         $otpCode = $this->issueLoginOtp($user);
         if (!ExternalNotificationService::loginOtp($user, $otpCode, $this->otpExpiryMinutes())) {
             $reason = trim(ExternalNotificationService::lastEmailError());
@@ -157,20 +166,8 @@ class AuthController
             redirect('login');
         }
 
-        session_regenerate_id(true);
-        $_SESSION['user_id'] = (int) $user['id'];
-        $_SESSION['last_activity_at'] = time();
         $this->clearPendingLoginOtp();
-
-        User::updateLastLogin((int) $user['id']);
-        AuditService::record('login', 'users', (int) $user['id'], (int) $user['id']);
-
-        if (!empty($user['must_change_password'])) {
-            set_flash('error', 'Please change your temporary password before continuing.');
-            redirect('profile/password/setup');
-        }
-
-        redirect('dashboard');
+        $this->completeLogin($user);
     }
 
     public function resendOtp(): void
@@ -479,6 +476,23 @@ class AuthController
         $otp = $security['login_otp'] ?? [];
 
         return max(0, (int) ($otp['resend_cooldown_seconds'] ?? 30));
+    }
+
+    private function completeLogin(array $user): never
+    {
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['last_activity_at'] = time();
+
+        User::updateLastLogin((int) $user['id']);
+        AuditService::record('login', 'users', (int) $user['id'], (int) $user['id']);
+
+        if (!empty($user['must_change_password'])) {
+            set_flash('error', 'Please change your temporary password before continuing.');
+            redirect('profile/password/setup');
+        }
+
+        redirect('dashboard');
     }
 
     private function generateOtpCode(int $digits): string
