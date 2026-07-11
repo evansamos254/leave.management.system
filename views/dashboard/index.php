@@ -21,7 +21,8 @@
     </article>
 </section>
 
-<?php if ($user['role'] === 'admin'): ?>
+<?php $isOverviewRole = in_array($user['role'], ['admin', 'waziri'], true); ?>
+<?php if ($isOverviewRole): ?>
     <section class="stats-grid compact">
         <article class="stat-card">
             <span>Approved Users</span>
@@ -38,6 +39,10 @@
         <article class="stat-card">
             <span>HR</span>
             <strong><?= (int) $stats['hr'] ?></strong>
+        </article>
+        <article class="stat-card">
+            <span>Waziri</span>
+            <strong><?= (int) $stats['waziri'] ?></strong>
         </article>
         <article class="stat-card">
             <span>Directors</span>
@@ -311,22 +316,22 @@ $departmentLabel = $isHrOffice ? 'Office-level account' : ($employee['department
     </section>
 <?php endif; ?>
 
-<?php if (in_array($user['role'], ['admin', 'supervisor'], true)): ?>
+<?php if (in_array($user['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director'], true)): ?>
     <section class="panel">
         <div class="panel-heading">
             <div>
                 <p class="eyebrow">Workflow</p>
-                <h2><?= $user['role'] === 'admin' ? 'Approval Progress' : 'Pending Approvals' ?></h2>
+                <h2><?= $isOverviewRole ? 'Approval Progress' : 'Pending Approvals' ?></h2>
             </div>
             <div class="button-row">
                 <a class="btn btn-ghost" href="<?= e(url('admin/leave-requests')) ?>">All Requests</a>
                 <a class="btn btn-ghost" href="<?= e(url('admin/activity')) ?>">System Logs</a>
-                <a class="btn btn-primary" href="<?= e(url('approvals')) ?>"><?= $user['role'] === 'admin' ? 'Open Progress' : 'Open Approvals' ?></a>
+                <a class="btn btn-primary" href="<?= e(url('approvals')) ?>"><?= $isOverviewRole ? 'Open Progress' : 'Open Approvals' ?></a>
             </div>
         </div>
 
         <?php if (!$pendingApprovals): ?>
-            <p class="muted"><?= $user['role'] === 'admin' ? 'No leave requests are currently in progress.' : 'No requests are waiting for your action.' ?></p>
+            <p class="muted"><?= $isOverviewRole ? 'No leave requests are currently in progress.' : 'No requests are waiting for your action.' ?></p>
         <?php else: ?>
             <div class="table-wrap">
                 <table>

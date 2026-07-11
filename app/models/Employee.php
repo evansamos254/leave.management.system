@@ -121,6 +121,22 @@ class Employee
         ]);
     }
 
+    public static function supervisorsInDepartment(int $departmentId): array
+    {
+        $stmt = db()->prepare(
+            "SELECT e.id AS employee_id, e.user_id, u.full_name, u.email, u.phone
+             FROM employees e
+             JOIN users u ON u.id = e.user_id
+             WHERE e.department_id = ?
+               AND u.role = 'supervisor'
+               AND u.status = 'active'
+             ORDER BY u.full_name ASC"
+        );
+        $stmt->execute([$departmentId]);
+
+        return $stmt->fetchAll();
+    }
+
     public static function workersWithAccounts(): array
     {
         $stmt = db()->query(

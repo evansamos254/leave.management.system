@@ -4,7 +4,7 @@
             <p class="eyebrow">Analytics</p>
             <h2>Leave Reports</h2>
         </div>
-        <?php if (in_array(current_user()['role'], ['admin', 'hr', 'director', 'supervisor'], true)): ?>
+        <?php if (in_array(current_user()['role'], ['admin', 'waziri', 'hr', 'director', 'supervisor'], true)): ?>
             <div class="actions">
                 <a class="btn btn-ghost" href="<?= e(url('reports/csv') . ($reportQuery ? '&' . $reportQuery : '')) ?>">Export CSV</a>
                 <a class="btn btn-primary" href="<?= e(url('reports/pdf') . ($reportQuery ? '&' . $reportQuery : '')) ?>">Export PDF</a>

@@ -27,7 +27,7 @@ class AccessScopeService
 
     public static function canAccessUser(array $target, array $viewer): bool
     {
-        if (in_array($viewer['role'] ?? '', ['admin', 'hr'], true)) {
+        if (in_array($viewer['role'] ?? '', ['admin', 'hr', 'waziri'], true)) {
             return true;
         }
 
@@ -48,7 +48,7 @@ class AccessScopeService
             return true;
         }
 
-        if (in_array($viewer['role'] ?? '', ['admin', 'hr'], true)) {
+        if (in_array($viewer['role'] ?? '', ['admin', 'hr', 'waziri'], true)) {
             return true;
         }
 

@@ -2,6 +2,8 @@
 
 class User
 {
+    private static bool $roleSchemaChecked = false;
+
     public static function find(int $id): ?array
     {
         $stmt = db()->prepare(
@@ -53,8 +55,36 @@ class User
         return strtoupper(preg_replace('/\s+/', '', trim($nationalId)) ?? '');
     }
 
+    private static function ensureRoleSchema(): void
+    {
+        if (self::$roleSchemaChecked) {
+            return;
+        }
+
+        $stmt = db()->prepare(
+            "SELECT COLUMN_TYPE
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'users'
+               AND COLUMN_NAME = 'role'
+             LIMIT 1"
+        );
+        $stmt->execute();
+        $columnType = strtolower((string) $stmt->fetchColumn());
+
+        if ($columnType !== '' && str_contains($columnType, 'waziri')) {
+            self::$roleSchemaChecked = true;
+            return;
+        }
+
+        db()->exec("ALTER TABLE users MODIFY role ENUM('admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer', 'waziri') NOT NULL DEFAULT 'employee'");
+        self::$roleSchemaChecked = true;
+    }
+
     public static function create(array $data): int
     {
+        self::ensureRoleSchema();
+
         $stmt = db()->prepare(
             'INSERT INTO users (full_name, email, national_id, gender, password_hash, role, phone, employment_document_path, status, must_change_password)
              VALUES (:full_name, :email, :national_id, :gender, :password_hash, :role, :phone, :employment_document_path, :status, :must_change_password)'
@@ -210,6 +240,8 @@ class User
 
     public static function updateAccess(int $id, string $role, string $status): void
     {
+        self::ensureRoleSchema();
+
         $stmt = db()->prepare('UPDATE users SET role = ?, status = ? WHERE id = ?');
         $stmt->execute([$role, $status, $id]);
     }

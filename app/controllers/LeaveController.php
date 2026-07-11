@@ -160,6 +160,18 @@ class LeaveController
         $submittedRequest = LeaveRequest::find($leaveRequestId);
         if ($submittedRequest) {
             ExternalNotificationService::leaveRequestSubmitted($submittedRequest, 'supervisor');
+            if (!empty($employee['supervisor_id'])) {
+                $supervisor = Employee::find((int) $employee['supervisor_id']);
+                if ($supervisor && !empty($supervisor['email'])) {
+                    ExternalNotificationService::leaveRequestSubmittedToSupervisor($submittedRequest, $supervisor);
+                }
+            } elseif (!empty($employee['department_id'])) {
+                foreach (Employee::supervisorsInDepartment((int) $employee['department_id']) as $supervisor) {
+                    if (!empty($supervisor['email'])) {
+                        ExternalNotificationService::leaveRequestSubmittedToSupervisor($submittedRequest, $supervisor);
+                    }
+                }
+            }
         }
 
         if (!empty($employee['supervisor_id'])) {

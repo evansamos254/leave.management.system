@@ -4,15 +4,17 @@ class ApprovalController
 {
     public function index(): void
     {
-        require_role(['admin', 'supervisor', 'hr', 'director']);
+        require_role(['admin', 'waziri', 'supervisor', 'hr', 'director']);
 
         $user = current_user();
         $employee = Employee::findByUserId((int) $user['id']);
+        $isOverviewRole = in_array($user['role'], ['admin', 'waziri'], true);
 
         view('approvals/index', [
-            'title' => $user['role'] === 'admin' ? 'Approval Progress' : 'Approvals',
+            'title' => $isOverviewRole ? 'Approval Progress' : 'Pending Leave Requests',
             'requests' => LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null, $user),
             'user' => $user,
+            'isOverviewRole' => $isOverviewRole,
         ]);
     }
 

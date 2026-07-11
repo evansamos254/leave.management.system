@@ -4,7 +4,7 @@ class CalendarController
 {
     public function index(): void
     {
-        require_role(['admin', 'supervisor', 'hr', 'director', 'chief_officer']);
+        require_role(['admin', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer']);
 
         $user = current_user();
         $employeeId = !empty($user['employee_id']) ? (int) $user['employee_id'] : null;

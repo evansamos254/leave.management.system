@@ -21,6 +21,7 @@ class ApprovalWorkflowService
     {
         return [
             'supervisor' => 'pending_supervisor',
+            'waziri' => 'pending_supervisor',
         ][$role] ?? null;
     }
 

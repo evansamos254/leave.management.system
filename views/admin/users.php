@@ -1,7 +1,7 @@
 <section class="panel">
-    <?php
+<?php
     $viewer = current_user();
-    $privilegedRoles = ['admin', 'supervisor', 'hr', 'director', 'chief_officer'];
+    $privilegedRoles = ['admin', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer'];
     ?>
     <div class="panel-heading">
         <div>
@@ -70,7 +70,7 @@
                 <?php
                 $canEditAccess = $viewer['role'] === 'admin' || !in_array($account['role'], $privilegedRoles, true);
                 $canAdminManage = $viewer['role'] === 'admin' && $account['role'] !== 'admin';
-                $canViewHistory = $viewer['role'] === 'admin';
+                $canViewHistory = in_array($viewer['role'], ['admin', 'waziri'], true);
                 $isHrOffice = $account['role'] === 'hr' && empty($account['department_name']);
                 $directorateLabel = $isHrOffice ? 'HR Office' : ($account['directorate_name'] ?? 'N/A');
                 $departmentLabel = $isHrOffice ? 'Office-level account' : ($account['department_name'] ?? 'N/A');

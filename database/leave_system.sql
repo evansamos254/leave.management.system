@@ -28,7 +28,7 @@ CREATE TABLE users (
   national_id VARCHAR(50) NULL UNIQUE,
   gender ENUM('male', 'female') NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer') NOT NULL DEFAULT 'employee',
+  role ENUM('admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer', 'waziri') NOT NULL DEFAULT 'employee',
   phone VARCHAR(30) NULL,
   profile_photo_path VARCHAR(255) NULL,
   employment_document_path VARCHAR(255) NULL,

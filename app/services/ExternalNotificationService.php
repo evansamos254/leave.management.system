@@ -115,6 +115,26 @@ class ExternalNotificationService
         );
     }
 
+    public static function leaveRequestSubmittedToSupervisor(array $request, array $supervisor): bool
+    {
+        $supervisorName = $supervisor['full_name'] ?? 'Supervisor';
+        $employeeName = $request['employee_name'] ?? $request['full_name'] ?? 'Applicant';
+        $message = 'Hello ' . $supervisorName . ',' . PHP_EOL . PHP_EOL
+            . $employeeName . ' has submitted a leave request and is waiting for your review.' . PHP_EOL
+            . self::leaveRequestSummary($request) . PHP_EOL . PHP_EOL
+            . 'Please log in to the system to review the request.';
+
+        return self::sendToContact(
+            $supervisorName,
+            (string) ($supervisor['email'] ?? ''),
+            $supervisor['phone'] ?? null,
+            'Leave request awaiting your review',
+            $message,
+            'Leave request notification sent to supervisor.',
+            self::leaveLink($request, 'leave/view')
+        );
+    }
+
     public static function leaveRequestProgressed(array $request, string $nextRole): bool
     {
         return self::sendLeaveEmail(

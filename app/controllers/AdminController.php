@@ -2,12 +2,12 @@
 
 class AdminController
 {
-    private array $roles = ['admin', 'employee', 'supervisor', 'hr', 'director', 'chief_officer'];
-    private array $workerRoles = ['employee', 'supervisor', 'hr', 'director', 'chief_officer'];
+    private array $roles = ['admin', 'waziri', 'employee', 'supervisor', 'hr', 'director', 'chief_officer'];
+    private array $workerRoles = ['employee', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer'];
     private array $statuses = ['pending', 'active', 'inactive', 'rejected'];
-    private array $profileManagers = ['admin', 'supervisor', 'hr', 'director'];
-    private array $monitoringRoles = ['admin', 'supervisor', 'hr', 'director'];
-    private array $departmentViewRoles = ['admin', 'supervisor', 'hr', 'director', 'chief_officer'];
+    private array $profileManagers = ['admin', 'waziri', 'supervisor', 'hr', 'director'];
+    private array $monitoringRoles = ['admin', 'waziri', 'supervisor', 'hr', 'director'];
+    private array $departmentViewRoles = ['admin', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer'];
 
     public function users(): void
     {
@@ -186,7 +186,7 @@ class AdminController
 
     public function activity(): void
     {
-        require_role(['admin', 'hr']);
+        require_role(['admin', 'hr', 'waziri']);
 
         view('admin/activity', [
             'title' => 'System Logs',
@@ -351,7 +351,7 @@ class AdminController
         $currentUser = current_user();
 
         if ($currentUser['role'] !== 'admin' && $data['role'] !== 'employee') {
-            $errors[] = 'Only the admin can create Supervisor, HR, Director, or Chief Officer accounts.';
+            $errors[] = 'Only the admin can create Waziri, Supervisor, HR, Director, or Chief Officer accounts.';
         }
 
         if ($errors) {
@@ -448,9 +448,9 @@ class AdminController
             redirect('admin/users');
         }
 
-        $privilegedRoles = ['supervisor', 'hr', 'director', 'chief_officer'];
+        $privilegedRoles = ['waziri', 'supervisor', 'hr', 'director', 'chief_officer'];
         if ($currentUser['role'] !== 'admin' && (in_array($targetUser['role'], $privilegedRoles, true) || in_array($role, $privilegedRoles, true))) {
-            set_flash('error', 'Only the admin can update Supervisor, HR, Director, or Chief Officer access.');
+            set_flash('error', 'Only the admin can update Waziri, Supervisor, HR, Director, or Chief Officer access.');
             redirect('admin/users');
         }
 
@@ -496,7 +496,7 @@ class AdminController
 
     public function userHistory(): void
     {
-        require_role('admin');
+        require_role(['admin', 'waziri']);
 
         $id = (int) ($_GET['id'] ?? 0);
         $targetUser = User::find($id);

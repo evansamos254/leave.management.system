@@ -463,6 +463,10 @@ function status_badge_class(string $status): string
 
 function role_label(string $role): string
 {
+    if ($role === 'waziri') {
+        return 'Waziri';
+    }
+
     if ($role === 'employee') {
         return 'Staff';
     }
@@ -489,6 +493,10 @@ function designation_label(?string $designation, ?string $role = null): string
         return 'Admin';
     }
 
+    if ($role === 'waziri') {
+        return 'Waziri';
+    }
+
     $designation = trim((string) $designation);
     if ($designation === '') {
         return 'N/A';
@@ -505,6 +513,10 @@ function designation_form_value(?string $designation, ?string $role = null): str
 {
     if ($role === 'admin') {
         return 'Admin';
+    }
+
+    if ($role === 'waziri') {
+        return 'Waziri';
     }
 
     $designation = trim((string) $designation);

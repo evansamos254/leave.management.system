@@ -1,13 +1,14 @@
+<?php $isOverviewRole = $isOverviewRole ?? in_array($user['role'], ['admin', 'waziri'], true); ?>
 <section class="panel">
     <div class="panel-heading">
         <div>
-            <p class="eyebrow"><?= e(role_label($user['role'])) ?> <?= $user['role'] === 'admin' ? 'View' : 'Queue' ?></p>
-            <h2><?= $user['role'] === 'admin' ? 'Approval Progress' : 'Pending Leave Requests' ?></h2>
+            <p class="eyebrow"><?= e(role_label($user['role'])) ?> <?= $isOverviewRole ? 'View' : 'Queue' ?></p>
+            <h2><?= $isOverviewRole ? 'Approval Progress' : 'Pending Leave Requests' ?></h2>
         </div>
     </div>
 
     <?php if (!$requests): ?>
-        <p class="muted"><?= $user['role'] === 'admin' ? 'No leave requests are currently in progress.' : 'No leave requests are pending at your approval stage.' ?></p>
+        <p class="muted"><?= $isOverviewRole ? 'No leave requests are currently in progress.' : 'No leave requests are pending at your approval stage.' ?></p>
     <?php else: ?>
         <div class="approval-list">
             <?php foreach ($requests as $request): ?>

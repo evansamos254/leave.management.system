@@ -11,8 +11,9 @@ $canEditJobGroup = $authUser && !empty($authUser['employee_id']);
 $isAuthHrOffice = $authUser && ($authUser['role'] ?? '') === 'hr' && empty($authUser['department_name']);
 $authDirectorateLabel = $isAuthHrOffice ? 'HR Office' : ($authUser['directorate_name'] ?? 'Not assigned');
 $authDepartmentLabel = $isAuthHrOffice ? 'Office-level account' : ($authUser['department_name'] ?? 'Not assigned');
-$canSeeApprovals = $authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director'], true);
-$canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'supervisor', 'hr', 'director', 'chief_officer'], true);
+$isOverviewRole = $authUser && in_array($authUser['role'], ['admin', 'waziri'], true);
+$canSeeApprovals = $authUser && in_array($authUser['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director'], true);
+$canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer'], true);
 ?>
 <!doctype html>
 <html lang="en">
@@ -78,8 +79,8 @@ $canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'sup
             <details class="nav-section" <?= in_array($activeRoute, ['approvals', 'leave/calendar'], true) ? 'open' : '' ?>>
                 <summary class="nav-group">Approvals</summary>
                 <div class="nav-sub">
-                    <?php if (in_array($authUser['role'], ['admin', 'supervisor'], true)): ?>
-                        <a class="<?= $activeRoute === 'approvals' ? 'active' : '' ?>" href="<?= e(url('approvals')) ?>"><?= $authUser['role'] === 'admin' ? 'Approval Progress' : 'Pending Approvals' ?></a>
+                    <?php if (in_array($authUser['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director'], true)): ?>
+                        <a class="<?= $activeRoute === 'approvals' ? 'active' : '' ?>" href="<?= e(url('approvals')) ?>"><?= $isOverviewRole ? 'Approval Progress' : 'Pending Approvals' ?></a>
                     <?php endif; ?>
                     <a class="<?= $activeRoute === 'leave/calendar' ? 'active' : '' ?>" href="<?= e(url('leave/calendar')) ?>">Leave Calendar</a>
                 </div>
@@ -101,7 +102,7 @@ $canSeeDepartmentTools = $authUser && in_array($authUser['role'], ['admin', 'sup
                     <?php if ($authUser['role'] === 'chief_officer'): ?>
                         <a class="<?= $activeRoute === 'leave/calendar' ? 'active' : '' ?>" href="<?= e(url('leave/calendar')) ?>">Leave Calendar</a>
                     <?php endif; ?>
-                    <?php if (in_array($authUser['role'], ['admin', 'hr'], true)): ?>
+                    <?php if (in_array($authUser['role'], ['admin', 'waziri', 'hr'], true)): ?>
                         <a class="<?= $activeRoute === 'admin/activity' ? 'active' : '' ?>" href="<?= e(url('admin/activity')) ?>">System Logs</a>
                     <?php endif; ?>
                     <?php if ($authUser['role'] === 'admin'): ?>

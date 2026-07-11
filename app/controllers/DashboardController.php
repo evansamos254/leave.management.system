@@ -9,7 +9,7 @@ class DashboardController
         $user = current_user();
         $employee = $user['employee_id'] ? Employee::find((int) $user['employee_id']) : null;
         $counts = match ($user['role']) {
-            'admin', 'hr', 'supervisor', 'director', 'chief_officer' => LeaveRequest::counts(null, $user),
+            'admin', 'waziri', 'hr', 'supervisor', 'director', 'chief_officer' => LeaveRequest::counts(null, $user),
             default => $employee ? LeaveRequest::counts((int) $employee['id']) : LeaveRequest::counts(),
         };
         $leaveTypes = LeaveType::active();
@@ -19,10 +19,10 @@ class DashboardController
             'unpaid' => count(array_filter($leaveTypes, fn (array $type): bool => (int) ($type['is_paid'] ?? 0) !== 1)),
             'tracked' => count(array_filter($leaveTypes, fn (array $type): bool => LeaveType::isBalanceTracked($type))),
         ];
-        $pendingApprovals = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director'], true)
+        $pendingApprovals = in_array($user['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director'], true)
             ? LeaveRequest::pendingForRole($user['role'], $employee ? (int) $employee['id'] : null, $user)
             : [];
-        $liveOverview = in_array($user['role'], ['admin', 'supervisor', 'hr', 'director', 'chief_officer'], true)
+        $liveOverview = in_array($user['role'], ['admin', 'waziri', 'supervisor', 'hr', 'director', 'chief_officer'], true)
             ? LeaveRequest::liveOverview($user['role'], $employee ? (int) $employee['id'] : null)
             : null;
         $returnToDutyRequest = $employee
@@ -45,6 +45,7 @@ class DashboardController
                 'employees' => User::countByRole('employee', $user),
                 'supervisors' => User::countByRole('supervisor', $user),
                 'hr' => User::countByRole('hr', $user),
+                'waziri' => User::countByRole('waziri', $user),
                 'directors' => User::countByRole('director', $user),
                 'chief_officers' => User::countByRole('chief_officer', $user),
                 'departments' => Department::count(),
