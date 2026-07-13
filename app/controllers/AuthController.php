@@ -72,11 +72,7 @@ class AuthController
             redirect('login');
         }
 
-        $useOtp = array_key_exists('use_otp', $_POST)
-            ? (string) ($_POST['use_otp'] ?? '0') === '1'
-            : true;
-
-        if (!$useOtp) {
+        if (!$this->requiresFirstLoginOtp($user)) {
             $this->clearPendingLoginOtp();
             $this->completeLogin($user);
         }
@@ -476,6 +472,18 @@ class AuthController
         $otp = $security['login_otp'] ?? [];
 
         return max(0, (int) ($otp['resend_cooldown_seconds'] ?? 30));
+    }
+
+    private function requiresFirstLoginOtp(array $user): bool
+    {
+        $security = app_config('security', []);
+        $otp = $security['login_otp'] ?? [];
+
+        if (empty($otp['enabled'])) {
+            return false;
+        }
+
+        return empty($user['last_login_at']);
     }
 
     private function completeLogin(array $user): never

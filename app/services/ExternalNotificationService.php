@@ -93,6 +93,7 @@ class ExternalNotificationService
 
         $message = 'Hello ' . $name . ',' . PHP_EOL . PHP_EOL
             . 'Your login verification code is ' . $code . '.' . PHP_EOL
+            . 'This verification is required for your first login.' . PHP_EOL
             . 'This code will expire in ' . $expiresMinutes . ' minute(s).' . PHP_EOL . PHP_EOL
             . 'If you did not try to sign in, please contact ICT immediately.';
 

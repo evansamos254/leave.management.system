@@ -23,7 +23,7 @@
             <div class="auth-form-heading">
                 <p class="eyebrow">Staff Portal</p>
                 <h2 id="login-title">Sign In</h2>
-                <p>Use your approved staff account to continue.</p>
+                <p>Use your approved staff account to continue. A verification code is required on your first login.</p>
             </div>
 
             <?php if ($message = flash('success')): ?>
@@ -50,19 +50,11 @@
                         </button>
                     </div>
                 </label>
-                <input type="hidden" name="use_otp" value="0">
-                <label class="auth-toggle">
-                    <input type="checkbox" name="use_otp" value="1" checked>
-                    <div>
-                        <span>Use login verification code</span>
-                        <small>Uncheck this to sign in directly without 2FA for this login.</small>
-                    </div>
-                </label>
                 <button class="btn btn-primary btn-block" type="submit">Login</button>
             </form>
 
             <p class="muted auth-note">
-                Login verification is available for all users and can be turned on or off at sign-in.
+                Login verification is required only on your first successful login.
             </p>
 
             <div class="auth-link-row">

@@ -25,8 +25,8 @@ $codeExpiresIn = max(1, (int) ceil(((int) ($expiresAt ?? time()) - time()) / 60)
         <div class="auth-content">
             <div class="auth-form-heading">
                 <p class="eyebrow">Verification</p>
-                <h2>Enter Your Login Code</h2>
-                <p>We sent a <?= (int) ($otpDigits ?? 6) ?>-digit code to <?= e($maskedEmail ?? 'your registered email address') ?>.</p>
+                <h2>Enter Your First Login Code</h2>
+                <p>We sent a <?= (int) ($otpDigits ?? 6) ?>-digit code to <?= e($maskedEmail ?? 'your registered email address') ?>. This verification is required only on your first login.</p>
             </div>
 
             <?php if ($message = flash('success')): ?>
